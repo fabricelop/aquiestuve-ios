@@ -1,0 +1,91 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 60;
+    objects = {
+/* Begin PBXBuildFile section */
+        B58C9C98A49DFCA7EA998EEE /* AquiEstuveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E031C78D3CB1DD3AFFF3ED8 /* AquiEstuveApp.swift */; };
+        58D29F18719C6AD38FB9EC2F /* CreatePlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4746844C148A5857DE8E0365 /* CreatePlaceView.swift */; };
+        D7A94A3AFBABAB7F3BC0370D /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B9C674C5861A81A51A11BC /* HistoryView.swift */; };
+        405FCB3247B175F2CB65B90E /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606BA15E540DF85E19C042E8 /* LocationService.swift */; };
+        C9CD6116BE5CF90FA375F84A /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D12DAE93E679EF55C4B9149 /* Models.swift */; };
+        66C5944842854DA2E7E17AD7 /* NearbySearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8968F9EDF1DC1D2AB0266A7B /* NearbySearch.swift */; };
+        C86838BE69809FA4830D488F /* NowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A64AA330F618CF7F68E1927 /* NowView.swift */; };
+        4F82441C1A52B2099BEA458D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37E5D763F272951FF8676450 /* RootView.swift */; };
+        66DFAC27722D2C3D60EC999C /* SavedPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FF2CF223D5AABC89F0E995 /* SavedPlacesView.swift */; };
+        FCC07C60D637BBCA2E354F47 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F3E5EBDC7A4C531B581FBC /* SettingsView.swift */; };
+        683E93E3F4B1178A2C6C1902 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0500F72E563F9D1CA15162A8 /* StatisticsView.swift */; };
+        ED2DED7A108E014431E14F94 /* VisitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C517FCBDD7A5AD99D900F99F /* VisitStore.swift */; };
+/* End PBXBuildFile section */
+/* Begin PBXFileReference section */
+        7E031C78D3CB1DD3AFFF3ED8 /* AquiEstuveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquiEstuveApp.swift; sourceTree = "<group>"; };
+        4746844C148A5857DE8E0365 /* CreatePlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePlaceView.swift; sourceTree = "<group>"; };
+        56B9C674C5861A81A51A11BC /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+        606BA15E540DF85E19C042E8 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+        8D12DAE93E679EF55C4B9149 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+        8968F9EDF1DC1D2AB0266A7B /* NearbySearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbySearch.swift; sourceTree = "<group>"; };
+        8A64AA330F618CF7F68E1927 /* NowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowView.swift; sourceTree = "<group>"; };
+        37E5D763F272951FF8676450 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+        84FF2CF223D5AABC89F0E995 /* SavedPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedPlacesView.swift; sourceTree = "<group>"; };
+        43F3E5EBDC7A4C531B581FBC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+        0500F72E563F9D1CA15162A8 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
+        C517FCBDD7A5AD99D900F99F /* VisitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitStore.swift; sourceTree = "<group>"; };
+        C5326349F03A5E41CE845D65 /* AquiEstuve.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AquiEstuve.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+/* Begin PBXGroup section */
+        BB0D01C2822B97014524A9EB = {isa = PBXGroup; children = (187CAEB32FBC2547D99E8232, 636EA38B8E0B7EA8D7ADD758,); sourceTree = "<group>"; };
+        187CAEB32FBC2547D99E8232 = {isa = PBXGroup; children = (
+                7E031C78D3CB1DD3AFFF3ED8 /* AquiEstuveApp.swift */,
+                4746844C148A5857DE8E0365 /* CreatePlaceView.swift */,
+                56B9C674C5861A81A51A11BC /* HistoryView.swift */,
+                606BA15E540DF85E19C042E8 /* LocationService.swift */,
+                8D12DAE93E679EF55C4B9149 /* Models.swift */,
+                8968F9EDF1DC1D2AB0266A7B /* NearbySearch.swift */,
+                8A64AA330F618CF7F68E1927 /* NowView.swift */,
+                37E5D763F272951FF8676450 /* RootView.swift */,
+                84FF2CF223D5AABC89F0E995 /* SavedPlacesView.swift */,
+                43F3E5EBDC7A4C531B581FBC /* SettingsView.swift */,
+                0500F72E563F9D1CA15162A8 /* StatisticsView.swift */,
+                C517FCBDD7A5AD99D900F99F /* VisitStore.swift */,
+        ); path = Source; sourceTree = "<group>"; };
+        636EA38B8E0B7EA8D7ADD758 = {isa = PBXGroup; children = (C5326349F03A5E41CE845D65,); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+/* Begin PBXNativeTarget section */
+        111111111111111111111111 = {isa = PBXNativeTarget; buildConfigurationList = D39E6118E9ED42A5126BAE32; buildPhases = (7C7B2E3D1CAC34EF2E9DD0B7, C793CFE4B075DFDEE49E7B17,); buildRules = (); dependencies = (); name = AquiEstuve; productName = AquiEstuve; productReference = C5326349F03A5E41CE845D65; productType = "com.apple.product-type.application"; };
+/* End PBXNativeTarget section */
+/* Begin PBXProject section */
+        FDE6E4360B849A5713D5785F = {isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = 1; LastUpgradeCheck = 1600; TargetAttributes = {111111111111111111111111 = {CreatedOnToolsVersion = 16.0; }; }; }; buildConfigurationList = 071386AB84951F69D0FD63AE; compatibilityVersion = "Xcode 15.0"; developmentRegion = es; hasScannedForEncodings = 0; knownRegions = (es, en, Base,); mainGroup = BB0D01C2822B97014524A9EB; productRefGroup = 636EA38B8E0B7EA8D7ADD758; projectDirPath = ""; projectRoot = ""; targets = (111111111111111111111111,); };
+/* End PBXProject section */
+/* Begin PBXResourcesBuildPhase section */
+        C793CFE4B075DFDEE49E7B17 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+/* Begin PBXSourcesBuildPhase section */
+        7C7B2E3D1CAC34EF2E9DD0B7 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+                B58C9C98A49DFCA7EA998EEE /* AquiEstuveApp.swift in Sources */,
+                58D29F18719C6AD38FB9EC2F /* CreatePlaceView.swift in Sources */,
+                D7A94A3AFBABAB7F3BC0370D /* HistoryView.swift in Sources */,
+                405FCB3247B175F2CB65B90E /* LocationService.swift in Sources */,
+                C9CD6116BE5CF90FA375F84A /* Models.swift in Sources */,
+                66C5944842854DA2E7E17AD7 /* NearbySearch.swift in Sources */,
+                C86838BE69809FA4830D488F /* NowView.swift in Sources */,
+                4F82441C1A52B2099BEA458D /* RootView.swift in Sources */,
+                66DFAC27722D2C3D60EC999C /* SavedPlacesView.swift in Sources */,
+                FCC07C60D637BBCA2E354F47 /* SettingsView.swift in Sources */,
+                683E93E3F4B1178A2C6C1902 /* StatisticsView.swift in Sources */,
+                ED2DED7A108E014431E14F94 /* VisitStore.swift in Sources */,
+        ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+/* Begin XCBuildConfiguration section */
+        85BFE9DBDB6067434E8984B2 = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+        795B6993DF3A3A05BE30DE82 = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_COMPILATION_MODE = wholemodule; }; name = Release; };
+        B0EE7820550B2B3215C9BD95 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.1; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
+        9E75B224E0BEAA03C056E5A1 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.1; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+/* End XCBuildConfiguration section */
+/* Begin XCConfigurationList section */
+        071386AB84951F69D0FD63AE = {isa = XCConfigurationList; buildConfigurations = (85BFE9DBDB6067434E8984B2, 795B6993DF3A3A05BE30DE82,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        D39E6118E9ED42A5126BAE32 = {isa = XCConfigurationList; buildConfigurations = (B0EE7820550B2B3215C9BD95, 9E75B224E0BEAA03C056E5A1,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+    };
+    rootObject = FDE6E4360B849A5713D5785F;
+}
