@@ -28,109 +28,15 @@ struct PulseView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 15) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("AQUÍESTUVE")
-                            .font(.caption.weight(.bold)).tracking(2.4)
-                            .foregroundStyle(.secondary)
-                        Text("Pulse")
-                            .font(.system(size: 37, weight: .bold, design: .rounded))
-                    }
-                    Spacer()
-                    Label(location.walkMode ? "Paseo" : "Ahorro", systemImage:
-                        location.walkMode ? "figure.walk" : "leaf.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(location.walkMode ? .orange : .green)
-                        .padding(.horizontal, 11).padding(.vertical, 7)
-                        .background(.regularMaterial, in: Capsule())
-                }
+                header
                 pulseHero
-                HStack(spacing: 11) {
-                    countTile(title: "SITIOS HOY", value: "\(namedVisitsToday)",
-                              subtitle: "Identificados", icon: "mappin.and.ellipse", tint: .indigo)
-                    countTile(title: "POR REVISAR", value: "\(pendingToday)",
-                              subtitle: "Paradas pendientes", icon: "checklist", tint: .orange)
-                }
-                HStack {
-                    Label("¿Dónde podrías estar?", systemImage: "sparkle.magnifyingglass")
-                        .font(.title3.weight(.bold))
-                    Spacer()
-                    Button("Explorar") { openExplorer = true }.font(.subheadline.weight(.semibold))
-                }
-                if candidates.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Sin candidatos recientes en la memoria local")
-                            .font(.subheadline.weight(.medium))
-                        Text("Abre Explorar una vez para consultar la zona. Pulse reutilizará los resultados, sin búsquedas periódicas.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Button("Buscar establecimientos") { openExplorer = true }
-                            .buttonStyle(.bordered)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(17)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-                } else {
-                    ForEach(candidates) { item in
-                        Button { candidateToReview = item } label: {
-                            HStack(spacing: 13) {
-                                Image(systemName: item.displaySymbol)
-                                    .font(.title2)
-                                    .foregroundStyle(item.categoryGroup.color)
-                                    .frame(width: 42, height: 42)
-                                    .background(item.categoryGroup.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 12))
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(item.name).font(.headline).foregroundStyle(.primary).lineLimit(1)
-                                    Text("\(item.categoryLabel) · \(item.distance.readableDistance)")
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
-                            }
-                            .padding(13)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                        }.buttonStyle(.plain)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 11) {
-                    HStack {
-                        Label("Tu día en movimiento", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
-                            .font(.headline)
-                        Spacer()
-                        Text("\(recentToday.count) tramos").font(.caption).foregroundStyle(.secondary)
-                    }
-                    if recentToday.isEmpty {
-                        Text("Las estancias detectadas aparecerán aquí. No necesitas tener Pulse abierto.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        ForEach(recentToday.prefix(5)) { stay in
-                            HStack(alignment: .top, spacing: 12) {
-                                Circle().fill(stay.placeID == nil ? .orange : .green)
-                                    .frame(width: 9, height: 9).padding(.top, 4)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(store.place(for: stay)?.name ?? "Parada por identificar")
-                                        .font(.subheadline.weight(.semibold))
-                                    Text("\(stay.arrival.formatted(date: .omitted, time: .shortened)) · \(stay.duration.readableDuration)")
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
-                        }
-                    }
-                }
-                .padding(17)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-                if store.reconciledAtLaunch > 0 {
-                    Label("\(store.reconciledAtLaunch) registros solapados reunidos al abrir la app", systemImage: "checkmark.shield")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.shield")
-                    Text("Pulse usa datos locales y eventos de iOS. No activa rastreo continuo ni consultas de mapas en segundo plano.")
-                }
-                .font(.caption2).foregroundStyle(.secondary)
-                .padding(.vertical, 8)
-            }.padding()
+                statsTiles
+                candidateSection
+                todaySection
+                reconciliationNotice
+                privacyFooter
+            }
+            .padding()
         }
         .background {
             LinearGradient(colors: [.indigo.opacity(0.09), .cyan.opacity(0.04), .clear],
@@ -145,6 +51,151 @@ struct PulseView: View {
                 candidateToReview = nil
             }
         }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("AQUÍESTUVE")
+                    .font(.caption.weight(.bold)).tracking(2.4)
+                    .foregroundStyle(.secondary)
+                Text("Pulse")
+                    .font(.system(size: 37, weight: .bold, design: .rounded))
+            }
+            Spacer()
+            Label(location.walkMode ? "Paseo" : "Ahorro",
+                  systemImage: location.walkMode ? "figure.walk" : "leaf.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(location.walkMode ? Color.orange : Color.green)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .background(.regularMaterial, in: Capsule())
+        }
+    }
+
+    private var statsTiles: some View {
+        HStack(spacing: 11) {
+            countTile(title: "SITIOS HOY", value: "\(namedVisitsToday)",
+                      subtitle: "Identificados", icon: "mappin.and.ellipse", tint: .indigo)
+            countTile(title: "POR REVISAR", value: "\(pendingToday)",
+                      subtitle: "Paradas pendientes", icon: "checklist", tint: .orange)
+        }
+    }
+
+    private var candidateSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("¿Dónde podrías estar?", systemImage: "sparkle.magnifyingglass")
+                    .font(.title3.weight(.bold))
+                Spacer()
+                Button("Explorar") { openExplorer = true }
+                    .font(.subheadline.weight(.semibold))
+            }
+            if candidates.isEmpty {
+                noCandidateCard
+            } else {
+                ForEach(candidates) { item in
+                    candidateCard(item)
+                }
+            }
+        }
+    }
+
+    private var noCandidateCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Sin candidatos recientes en la memoria local")
+                .font(.subheadline.weight(.medium))
+            Text("Abre Explorar una vez para consultar la zona. Pulse reutilizará los resultados, sin búsquedas periódicas.")
+                .font(.caption).foregroundStyle(.secondary)
+            Button("Buscar establecimientos") { openExplorer = true }
+                .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(17)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func candidateCard(_ item: PlaceCandidate) -> some View {
+        Button {
+            candidateToReview = item
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: item.displaySymbol)
+                    .font(.title2)
+                    .foregroundStyle(item.categoryGroup.color)
+                    .frame(width: 42, height: 42)
+                    .background(item.categoryGroup.color.opacity(0.13),
+                                in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.name).font(.headline).foregroundStyle(.primary).lineLimit(1)
+                    Text("\(item.categoryLabel) · \(item.distance.readableDistance)")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+            }
+            .padding(13)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var todaySection: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack {
+                Label("Tu día en movimiento", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+                    .font(.headline)
+                Spacer()
+                Text("\(recentToday.count) tramos")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if recentToday.isEmpty {
+                Text("Las estancias detectadas aparecerán aquí. No necesitas tener Pulse abierto.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(recentToday.prefix(5)) { stay in
+                    todayRow(stay)
+                }
+            }
+        }
+        .padding(17)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func todayRow(_ stay: Stay) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Circle()
+                .fill(stay.placeID == nil ? Color.orange : Color.green)
+                .frame(width: 9, height: 9)
+                .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(store.place(for: stay)?.name ?? "Parada por identificar")
+                    .font(.subheadline.weight(.semibold))
+                Text("\(stay.arrival.formatted(date: .omitted, time: .shortened)) · \(stay.duration.readableDuration)")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var reconciliationNotice: some View {
+        if store.reconciledAtLaunch > 0 {
+            Label("\(store.reconciledAtLaunch) registros solapados reunidos al abrir la app",
+                  systemImage: "checkmark.shield")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var privacyFooter: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.shield")
+            Text("Pulse usa datos locales y eventos de iOS. No activa rastreo continuo ni consultas de mapas en segundo plano.")
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .padding(.vertical, 8)
     }
 
     private var pulseHero: some View {

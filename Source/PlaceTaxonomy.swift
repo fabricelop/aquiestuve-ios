@@ -5,7 +5,7 @@ import SwiftUI
 // conservan su categoría original, incluida cualquier corrección del usuario.
 enum PlaceGroup: String, CaseIterable, Identifiable {
     case all, food, cafes, shopping, health, leisure, culture, outdoors, sports,
-         transport, education, lodging, services, privatePlaces, others
+         transport, education, business, institutions, lodging, services, privatePlaces, others
 
     var id: String { rawValue }
 

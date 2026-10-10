@@ -113,6 +113,8 @@ struct ClusteredPlacesMap: UIViewRepresentable {
             case .sports: color = .systemMint
             case .transport: color = .systemTeal
             case .education: color = .systemIndigo
+            case .business: color = .systemTeal
+            case .institutions: color = .brown
             case .lodging: color = .systemCyan
             case .services: color = .darkGray
             case .privatePlaces: color = .systemYellow
