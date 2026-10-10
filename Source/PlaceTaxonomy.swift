@@ -21,7 +21,9 @@ enum PlaceGroup: String, CaseIterable, Identifiable {
         case .outdoors: return "Parques y naturaleza"
         case .sports: return "Deporte"
         case .transport: return "Transporte"
-        case .education: return "Educación y trabajo"
+        case .education: return "Educación"
+        case .business: return "Empresas y oficinas"
+        case .institutions: return "Instituciones"
         case .lodging: return "Alojamiento"
         case .services: return "Servicios"
         case .privatePlaces: return "Personales"
@@ -42,6 +44,8 @@ enum PlaceGroup: String, CaseIterable, Identifiable {
         case .sports: return "figure.run"
         case .transport: return "tram.fill"
         case .education: return "books.vertical.fill"
+        case .business: return "building.2.fill"
+        case .institutions: return "building.columns.fill"
         case .lodging: return "bed.double.fill"
         case .services: return "wrench.adjustable.fill"
         case .privatePlaces: return "house.fill"
@@ -62,6 +66,8 @@ enum PlaceGroup: String, CaseIterable, Identifiable {
         case .sports: return .mint
         case .transport: return .teal
         case .education: return .indigo
+        case .business: return .teal
+        case .institutions: return .brown
         case .lodging: return .cyan
         case .services: return .gray
         case .privatePlaces: return .yellow
@@ -106,6 +112,28 @@ enum PlaceTaxonomy {
                 return result(value.isEmpty ? "Lugar privado" : value, .privatePlaces)
             }
         }
+        // A selected fine-grained category retains its exact label and broad family.
+        // No network lookups; user corrections take priority over provider taxonomy.
+        if let selected = CategoryCatalog.all.first(where: { simplified($0.name) == key }) {
+            let family: PlaceGroup
+            switch selected.family {
+            case "Restauración": family = .food
+            case "Bares y bebidas": family = .cafes
+            case "Alimentación y compras": family = .shopping
+            case "Educación": family = .education
+            case "Empresas y trabajo": family = .business
+            case "Administración e instituciones": family = .institutions
+            case "Salud": family = .health
+            case "Deporte y bienestar": family = .sports
+            case "Cultura y ocio": family = .culture
+            case "Naturaleza y exteriores": family = .outdoors
+            case "Transporte y movilidad": family = .transport
+            case "Alojamiento": family = .lodging
+            case "Personales": family = .privatePlaces
+            default: family = .services
+            }
+            return result(selected.name, family)
+        }
         switch key {
         // User-chosen broader groups remain recognizable after persistence.
         case "restaurantesycomida", "comida": return result("Restaurantes y comida", .food)
@@ -117,7 +145,9 @@ enum PlaceTaxonomy {
         case "parquesynaturaleza": return result("Parques y naturaleza", .outdoors)
         case "deporte": return result("Deporte", .sports)
         case "transporte": return result("Transporte", .transport)
-        case "educacionytrabajo": return result("Educación y trabajo", .education)
+        case "educacionytrabajo", "educacion": return result("Educación", .education)
+        case "empresasyoficinas": return result("Empresas y oficinas", .business)
+        case "instituciones": return result("Instituciones", .institutions)
         case "alojamiento": return result("Alojamiento", .lodging)
         case "servicios": return result("Servicios", .services)
         // Restauración y alimentación.

@@ -11,10 +11,14 @@ struct RootView: View {
     @EnvironmentObject private var store: VisitStore
     @StateObject private var router = PlaceDeepLinkRouter.shared
     @State private var tab = 0
+    @State private var openExplorer = false
     var body: some View {
         TabView(selection: $tab) {
-            NavigationStack { NowView() }
-                .tabItem { Label("Ahora", systemImage: "location.circle.fill") }.tag(0)
+            NavigationStack {
+                PulseView(openExplorer: $openExplorer)
+                    .navigationDestination(isPresented: $openExplorer) { NowView() }
+            }
+                .tabItem { Label("Pulse", systemImage: "waveform.path") }.tag(0)
             NavigationStack { HistoryView() }
                 .tabItem { Label("Historial", systemImage: "clock.arrow.circlepath") }.tag(1)
             NavigationStack { StatisticsView() }
@@ -26,11 +30,15 @@ struct RootView: View {
         }
         .tint(.indigo)
         .onOpenURL { url in
-            guard url.scheme == "aquiestuve", url.host == "place",
-                  let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                    .queryItems?.first(where: { $0.name == "id" })?.value else { return }
-            router.requestedPlaceID = id
+            guard url.scheme == "aquiestuve" else { return }
+            if url.host == "place" {
+                if let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "id" })?.value {
+                    router.requestedPlaceID = id
+                }
+            } else if url.host != "places" { return }
             tab = 0
+            openExplorer = true
         }
     }
 }

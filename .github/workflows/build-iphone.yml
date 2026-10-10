@@ -27,6 +27,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 Tests/check_source.py
+          swiftc Source/StayReconciliation.swift Tests/check_episodes.swift -o /tmp/aquiestuve-episode-tests
+          /tmp/aquiestuve-episode-tests
           plutil -lint AquiEstuve.xcodeproj/project.pbxproj
           plutil -lint Source/Info.plist LiveWidget/Info.plist
           python3 tools/generate_project.py

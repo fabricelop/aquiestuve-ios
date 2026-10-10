@@ -9,6 +9,7 @@ struct CreatePlaceView: View {
     @State private var name = ""
     @State private var category = "Personal"
     @State private var assignToCurrent = true
+    @State private var chooseCategory = false
 
     init(initial: GeoPoint, assignToCurrentByDefault: Bool = true) {
         self.initial = initial
@@ -21,11 +22,13 @@ struct CreatePlaceView: View {
                 Section("Lugar privado") {
                     TextField("Nombre: Casa, casa de un amigo…", text: $name)
                         .textInputAutocapitalization(.words)
-                    Picker("Categoría", selection: $category) {
-                        ForEach(["Casa", "Amigos", "Trabajo", "Restaurante", "Tienda", "Ocio", "Personal", "Otro"], id: \.self) {
-                            Text($0)
-                        }
+                    HStack {
+                        Text("Categoría")
+                        Spacer()
+                        Text(category).foregroundStyle(.secondary)
                     }
+                    Button("Buscar entre todas las categorías") { chooseCategory = true }
+                    TextField("O escribir una categoría propia", text: $category)
                     Toggle("Asignar a la visita actual", isOn: $assignToCurrent)
                 }
                 Section("Posición (mantén pulsado para ajustar)") {
@@ -41,6 +44,7 @@ struct CreatePlaceView: View {
                 }
             }
             .navigationTitle("Nuevo lugar")
+            .sheet(isPresented: $chooseCategory) { CategoryPickerView(selection: $category) }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }

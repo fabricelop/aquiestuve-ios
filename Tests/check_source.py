@@ -120,7 +120,7 @@ class Checks(unittest.TestCase):
         self.assertIn('placeAliases: placeAliases', store)
         self.assertIn('func canonicalPlace(for candidate:', store)
         self.assertIn('func mergeCandidates(primary:', store)
-        self.assertIn('consolidateExactOverlaps', store)
+        self.assertIn('StayReconciliation.reconcile(', store)
 
     def test_manual_confirmation_is_required_for_merging(self):
         view = (root / 'Source/DuplicateMergeView.swift').read_text(encoding='utf-8')
@@ -154,6 +154,43 @@ class Checks(unittest.TestCase):
         source = (root / 'Source/CreatePlaceView.swift').read_text(encoding='utf-8')
         self.assertIn('as? MKPointAnnotation', source)
         self.assertIn('context.coordinator.parent = self', source)
+
+    def test_pulse_first_without_persistent_gps(self):
+        pulse = (root / 'Source/PulseView.swift').read_text(encoding='utf-8')
+        root_view = (root / 'Source/RootView.swift').read_text(encoding='utf-8')
+        self.assertIn('PulseView(openExplorer:', root_view)
+        self.assertIn('NearbyNotificationCache.suggestions', pulse)
+        self.assertNotIn('startUpdatingLocation()', pulse)
+        self.assertNotIn('MKLocalSearch', pulse)
+        self.assertIn('TimelineView(.periodic(from: .now, by: 60))', pulse)
+
+    def test_walk_hysteresis_and_episode_merger(self):
+        location = (root / 'Source/LocationService.swift').read_text(encoding='utf-8')
+        store = (root / 'Source/VisitStore.swift').read_text(encoding='utf-8')
+        self.assertIn('delta > 115 && point.speed >= 1.5', location)
+        self.assertIn('timeIntervalSince(since) >= 45', location)
+        self.assertIn('func reconcileStays()', store)
+        self.assertIn('visits-pre-pulse-013.json', store)
+        self.assertIn('StayReconciliation.reconcile(', store)
+        self.assertIn('if let a = existing.placeID, let b = entry.placeID, a != b',
+                      (root / 'Source/StayReconciliation.swift').read_text(encoding='utf-8'))
+
+    def test_hundreds_of_searchable_categories(self):
+        categories = (root / 'Source/CategoryCatalog.swift').read_text(encoding='utf-8')
+        self.assertGreaterEqual(categories.count('DetailedCategory(family:'), 300)
+        self.assertIn('Escuela de Arquitectura', categories)
+        self.assertIn('Colegio de Arquitectos', categories)
+        self.assertIn('Sede de telecomunicaciones', categories)
+        self.assertIn('searchable(text: $query', categories)
+        for f in ('NowView.swift', 'SavedPlacesView.swift', 'CreatePlaceView.swift'):
+            self.assertIn('CategoryPickerView(selection:', (root/'Source'/f).read_text(encoding='utf-8'))
+
+    def test_no_extra_background_requests(self):
+        root_view = (root / 'Source/RootView.swift').read_text(encoding='utf-8')
+        self.assertIn('openExplorer = true', root_view)
+        location = (root / 'Source/LocationService.swift').read_text(encoding='utf-8')
+        self.assertIn('if walkMode && authorization == .authorizedAlways', location)
+        self.assertIn('startMonitoringSignificantLocationChanges()', location)
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

@@ -119,6 +119,8 @@ struct NowView: View {
         case .shopping: term = "tiendas"
         case .health: term = "farmacias y centros de salud"
         case .sports: term = "centros deportivos"
+        case .business: term = "empresas"
+        case .institutions: term = "instituciones"
         case .outdoors: term = "parques"
         default: term = selectedGroup.title
         }
@@ -542,7 +544,7 @@ private struct GroupedPlacesList: View {
     }
 }
 
-private struct NearbyPlacePreview: View {
+struct NearbyPlacePreview: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: VisitStore
     let item: PlaceCandidate
@@ -551,6 +553,7 @@ private struct NearbyPlacePreview: View {
     @State private var showDuplicateMerge = false
     @State private var category: String
     @State private var customCategory = ""
+    @State private var chooseCategory = false
 
     init(item: PlaceCandidate, alternatives: [PlaceCandidate], confirm: @escaping () -> Void) {
         self.item = item; self.alternatives = alternatives; self.confirm = confirm
@@ -587,6 +590,7 @@ private struct NearbyPlacePreview: View {
                                 Text(group.title).tag(group.title)
                             }
                         }
+                        Button("Buscar categoría detallada") { customCategory = ""; chooseCategory = true }
                         TextField("O escribir categoría más concreta", text: $customCategory)
                             .textInputAutocapitalization(.sentences)
                         Button("Guardar categoría sin crear visita") {
@@ -607,6 +611,7 @@ private struct NearbyPlacePreview: View {
                 }
                 .padding()
             }
+            .sheet(isPresented: $chooseCategory) { CategoryPickerView(selection: $category) }
             .navigationTitle("Ficha del lugar")
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showDuplicateMerge) {

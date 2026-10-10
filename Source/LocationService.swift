@@ -13,6 +13,8 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     @Published private(set) var walkMode = false
     private var stationaryStart: CLLocation?
     private var latestStationary: CLLocation?
+    private var departingSince: Date?
+    @Published private(set) var mobilityHint = "Ubicación pasiva"
     private let manager = CLLocationManager()
     private override init() {
         super.init()
@@ -39,8 +41,10 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
             UserDefaults.standard.set(Date(), forKey: "ae_walk_start")
             stationaryStart = nil
             latestStationary = nil
+            departingSince = nil
         } else {
             UserDefaults.standard.removeObject(forKey: "ae_walk_start")
+            mobilityHint = "Ubicación pasiva"
             manager.stopUpdatingLocation()
             manager.allowsBackgroundLocationUpdates = false
             manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -56,6 +60,7 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
                                           arrival: first.timestamp, departure: last.timestamp)
         stationaryStart = nil
         latestStationary = nil
+        departingSince = nil
     }
 
     private func observeWalk(_ point: CLLocation) {
@@ -65,23 +70,36 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
             setWalkMode(false)
             return
         }
-        if point.speed >= 1.7 {
-            completeStationaryStop()
-            stationaryStart = nil; latestStationary = nil
-            return
-        }
-        if let first = stationaryStart {
-            if point.distance(from: first) > 45 {
-                completeStationaryStop()
+        // GPS jitter and unreliable instantaneous speed are NOT proof of departure.
+        // A dwell is one continuous episode until movement is sustained outside its
+        // tolerance zone. Never emit periodic visits just because fixes keep coming.
+        guard let first = stationaryStart else {
+            if point.speed >= 0 && point.speed < 1.0 {
                 stationaryStart = point
                 latestStationary = point
-            } else {
-                latestStationary = point
+                departingSince = nil
+                mobilityHint = "Posible parada"
+            } else if point.speed >= 2.0 {
+                mobilityHint = "En movimiento"
             }
-        } else if point.speed < 1.0 {
-            stationaryStart = point
-            latestStationary = point
+            return
         }
+        let delta = point.distance(from: first)
+        let departureEvidence = delta > 115 && point.speed >= 1.5
+        if departureEvidence {
+            if let since = departingSince,
+               point.timestamp.timeIntervalSince(since) >= 45 {
+                completeStationaryStop()
+                mobilityHint = "En movimiento"
+            } else if departingSince == nil {
+                departingSince = point.timestamp
+            }
+            return
+        }
+        // Treat single far-away readings as noise; require sustained travel.
+        departingSince = nil
+        if delta <= 110 { latestStationary = point }
+        mobilityHint = "Parada en curso"
     }
 
     func startIfAllowed() {

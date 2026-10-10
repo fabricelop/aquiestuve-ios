@@ -10,6 +10,7 @@ final class VisitStore: ObservableObject {
     @Published private(set) var categoryOverrides: [String: String] = [:]
     @Published private(set) var placeAliases: [String: UUID] = [:]
     @Published private(set) var lastError: String?
+    @Published private(set) var reconciledAtLaunch = 0
 
     private let storageURL: URL
     private init() {
@@ -23,6 +24,13 @@ final class VisitStore: ObservableObject {
             stays = stored.stays
             categoryOverrides = stored.categoryOverrides
             placeAliases = stored.placeAliases.filter { key, id in stored.places.contains(where: { $0.id == id }) }
+            // One-time original-file backup before any automatic reconciliation.
+            let backup = folder.appendingPathComponent("visits-pre-pulse-013.json")
+            if !FileManager.default.fileExists(atPath: backup.path) {
+                try? FileManager.default.copyItem(at: storageURL, to: backup)
+            }
+            reconciledAtLaunch = reconcileStays()
+            if reconciledAtLaunch > 0 { persist() }
         }
     }
 
@@ -36,7 +44,7 @@ final class VisitStore: ObservableObject {
         } catch { lastError = "No se pudo guardar: \(error.localizedDescription)" }
     }
 
-    var activeStay: Stay? { stays.last(where: { $0.departure == nil }) }
+    var activeStay: Stay? { stays.filter { $0.departure == nil }.max(by: { $0.arrival < $1.arrival }) }
     func place(for stay: Stay) -> Place? { places.first(where: { $0.id == stay.placeID }) }
     func visitCount(for place: Place) -> Int { stays.filter { $0.placeID == place.id }.count }
     func totalTime(for place: Place, asOf date: Date = Date()) -> TimeInterval {
@@ -129,39 +137,34 @@ final class VisitStore: ObservableObject {
         placeAliases[primary.id] = primaryPlace.id
         placeAliases[duplicate.id] = primaryPlace.id
         placeAliases[primaryPlace.source.rawValue + ":" + primaryPlace.sourceKey] = primaryPlace.id
-        consolidateExactOverlaps(for: primaryPlace.id)
+        _ = reconcileStays()
         persist()
         return true
     }
 
-    /// Only consolidate genuinely overlapping visit intervals after a manual venue merge.
-    /// Do not coalesce consecutive visits merely because they share a location.
-    private func consolidateExactOverlaps(for placeID: UUID) {
-        let ids = stays.enumerated().filter { $0.element.placeID == placeID }
-            .sorted { $0.element.arrival < $1.element.arrival }.map(\.offset)
-        var kept: [Int] = []
-        var removed = Set<UUID>()
-        for index in ids {
-            let visit = stays[index]
-            if let last = kept.last {
-                let other = stays[last]
-                let firstEnd = other.departure ?? .distantFuture
-                let secondEnd = visit.departure ?? .distantFuture
-                // Only overlapping records, not a second separate check-in later.
-                if visit.arrival < firstEnd && other.arrival < secondEnd {
-                    stays[last].arrival = min(other.arrival, visit.arrival)
-                    stays[last].departure = firstEnd == .distantFuture || secondEnd == .distantFuture
-                        ? nil : max(firstEnd, secondEnd)
-                    if visit.status == .confirmed { stays[last].status = .confirmed }
-                    removed.insert(visit.id)
-                    continue
-                }
-            }
-            kept.append(index)
+    /// Unifies overlapping evidence; never combines conflicting named venues.
+    @discardableResult
+    private func reconcileStays() -> Int {
+        let before = stays.count
+        let evidence = stays.map { stay in
+            StayEvidence(id: stay.id, placeID: stay.placeID, latitude: stay.position.latitude,
+                longitude: stay.position.longitude, arrival: stay.arrival,
+                departure: stay.departure, status: stay.status.rawValue, origin: stay.origin)
         }
-        stays.removeAll { removed.contains($0.id) }
+        let joined = StayReconciliation.reconcile(evidence)
+        guard joined.count < before else { return 0 }
+        let original = Dictionary(uniqueKeysWithValues: stays.map { ($0.id, $0) })
+        stays = joined.compactMap { item in
+            guard var stay = original[item.id] else { return nil }
+            stay.placeID = item.placeID
+            stay.arrival = item.arrival
+            stay.departure = item.departure
+            stay.origin = item.origin
+            stay.status = StayStatus(rawValue: item.status) ?? .unresolved
+            return stay
+        }
+        return before - stays.count
     }
-
 
     func updateCategory(for candidate: PlaceCandidate, to category: String) {
         let clean = category.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -200,6 +203,7 @@ final class VisitStore: ObservableObject {
             stays.append(Stay(placeID: place.id, position: candidate.position,
                               arrival: Date(), departure: nil, status: .confirmed, origin: "manual"))
         }
+        _ = reconcileStays()
         persist()
     }
 
@@ -209,6 +213,7 @@ final class VisitStore: ObservableObject {
         }
         stays.append(Stay(placeID: place.id, position: place.position, arrival: date,
                           departure: nil, status: .confirmed, origin: "manual"))
+        _ = reconcileStays()
         persist()
     }
 
@@ -225,6 +230,7 @@ final class VisitStore: ObservableObject {
         stays[index].departure = departure
         stays[index].placeID = placeID
         stays[index].status = placeID == nil ? .unresolved : .confirmed
+        _ = reconcileStays()
         persist()
     }
 
@@ -246,7 +252,10 @@ final class VisitStore: ObservableObject {
             stays[$0].position.distance(to: position) < max(75, accuracy)
         })
         if let prior {
-            if finiteDeparture, let departure { stays[prior].departure = max(arrival, departure) }
+            if finiteDeparture, let departure {
+                stays[prior].departure = max(stays[prior].departure ?? arrival, departure)
+            }
+            _ = reconcileStays()
             persist()
             return false
         }
@@ -263,6 +272,7 @@ final class VisitStore: ObservableObject {
             if finiteDeparture, let departure {
                 stays[open].departure = max(stays[open].arrival, departure)
             }
+            _ = reconcileStays()
             persist()
             return false
         }
@@ -275,12 +285,14 @@ final class VisitStore: ObservableObject {
             .sorted { $0.1 < $1.1 }
         let confident = accuracy > 0 && accuracy <= 45 && possible.count == 1 && possible[0].1 <= 30
         let match = confident ? possible[0].0.id : nil
-        stays.append(Stay(placeID: match, position: position, arrival: arrival,
+        let observedID = UUID()
+        stays.append(Stay(id: observedID, placeID: match, position: position, arrival: arrival,
                           departure: finiteDeparture ? departure : nil,
                           status: match == nil ? .unresolved : .automatic,
                           origin: "system"))
+        _ = reconcileStays()
         persist()
-        return !finiteDeparture && match == nil
+        return !finiteDeparture && match == nil && stays.contains(where: { $0.id == observedID })
     }
 
 
@@ -296,6 +308,7 @@ final class VisitStore: ObservableObject {
         }) { return }
         stays.append(Stay(placeID: nil, position: position, arrival: arrival,
                           departure: departure, status: .unresolved, origin: "paseo"))
+        _ = reconcileStays()
         persist()
     }
 

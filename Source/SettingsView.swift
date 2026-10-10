@@ -27,7 +27,7 @@ struct SettingsView: View {
                     get: { location.walkMode },
                     set: { location.setWalkMode($0) }
                 ))
-                Text("Para paseos concretos: analiza posibles pausas a partir del GPS y las guarda pendientes de revisión. Consume más batería que el modo normal, puede omitir pausas y termina automáticamente tras un máximo de 3 horas.")
+                Text("Sin este modo, iOS sigue detectando visitas con bajo consumo, pero puede omitir paradas cortas. El modo Paseo emplea GPS más preciso, exige movimiento sostenido para cerrar estancias y finaliza como máximo en 3 horas.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Text("Cuando vuelvas, entra en Historial → Pendientes para confirmar o descartar las paradas observadas.")
                     .font(.footnote).foregroundStyle(.secondary)
@@ -59,7 +59,7 @@ struct SettingsView: View {
                 if !live.diagnosticText.isEmpty {
                     Text(live.diagnosticText).font(.caption.monospaced()).textSelection(.enabled)
                 }
-                Text("El panel muestra hasta tres candidatos recientes. Tocar un lugar abre su ficha para confirmar; no registra visitas por accidente. No consulta GPS por su cuenta y puede dejar de actualizarse si iOS no despierta la app. iOS limita su duración.")
+                Text("La actividad de iOS es experimental: si su interfaz no aparece, usa Pulse dentro de la app. El panel muestra hasta tres candidatos recientes. Tocar un lugar abre su ficha para confirmar; no registra visitas por accidente. No consulta GPS por su cuenta y puede dejar de actualizarse si iOS no despierta la app. iOS limita su duración.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Datos y privacidad") {
@@ -75,7 +75,7 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Acerca de") {
-                LabeledContent("Versión", value: "0.12 · Prueba")
+                LabeledContent("Versión", value: "0.13 · Pulse")
                 LabeledContent("Coste", value: "0 €")
                 Text("La detección de visitas de iOS no es inmediata ni garantiza reconocer dos negocios contiguos. Puedes corregir cualquier estancia en Historial.")
                     .font(.footnote).foregroundStyle(.secondary)

@@ -40,9 +40,9 @@ struct HistoryView: View {
                                     Text("\(stay.arrival.formatted(date: .omitted, time: .shortened)) – \(stay.departure?.formatted(date: .omitted, time: .shortened) ?? "en curso")")
                                         .font(.subheadline).foregroundStyle(.secondary)
                                     Text("\(stay.duration.readableDuration) · " +
-                                         (stay.origin == "paseo" ? "Posible parada de paseo" :
+                                         (stay.status == .confirmed ? "Confirmada" :
                                           stay.status == .automatic ? "Identificación automática" :
-                                          stay.status == .confirmed ? "Confirmada" : "Pendiente"))
+                                          stay.origin.contains("paseo") ? "Parada de paseo pendiente" : "Pendiente"))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                             }

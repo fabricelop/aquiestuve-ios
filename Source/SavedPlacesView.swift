@@ -132,6 +132,7 @@ struct PlaceDetailsView: View {
     @State private var category: String
     @State private var confirmDelete = false
     @State private var showMerge = false
+    @State private var chooseCategory = false
     init(place: Place) {
         self.place = place
         _name = State(initialValue: place.name)
@@ -142,11 +143,10 @@ struct PlaceDetailsView: View {
             Section("Lugar") {
                 TextField("Nombre", text: $name)
                 TextField("Categoría", text: $category)
-                Menu("Elegir categoría habitual") {
-                    ForEach(["Restaurante", "Cafetería", "Bar", "Supermercado", "Tienda",
-                             "Farmacia", "Parque", "Gimnasio", "Hotel", "Oficina", "Casa", "Otro"], id: \.self) { option in
-                        Button(option) { category = option }
-                    }
+                Button {
+                    chooseCategory = true
+                } label: {
+                    Label("Buscar en el catálogo de categorías", systemImage: "list.bullet.rectangle")
                 }
                 Button("Guardar nombre y categoría") {
                     store.rename(place, name: name, category: category)
@@ -173,6 +173,7 @@ struct PlaceDetailsView: View {
         }
         .navigationTitle(place.name)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $chooseCategory) { CategoryPickerView(selection: $category) }
         .sheet(isPresented: $showMerge) {
             DuplicateMergeView(primary: store.savedCandidate(for: place, near: place.position),
                 options: store.places.filter { $0.id != place.id }.map {

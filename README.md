@@ -1,62 +1,18 @@
-# AquíEstuve v0.12 — Probables, mapa y panel de bloqueo
+# AquíEstuve v0.13 · Pulse
 
-Aplicación nativa SwiftUI + MapKit + Core Location. Código fuente abierto; **los datos de ubicación permanecen en el iPhone** y no se incluyen en el repositorio.
+Versión experimental para iPhone. App sin backend personal, sin Vercel y sin consultas periódicas de lugares. Conserva el `CFBundleIdentifier` original para actualización sobre la instalación actual.
 
-## Cambios incluidos
+## Novedades
 
-- **Probables / Todos:** los lugares privados, visitados y los negocios reconocibles tienen prioridad. El listado completo conserva oficinas y otras ubicaciones, sin eliminarlas de la búsqueda.
-- **Tipos de lugares:** comercios y locales, espacios públicos, oficinas y otros, y lugares personales. La categoría sigue siendo editable y se guarda.
-- **Mapa compacto o pantalla completa:** agrupación real de pines mediante `MKMapView`, controles `+`/`−`, botón de centrar y lista con todos los miembros de cada grupo. Cambiar la escala no hace nuevas consultas. «Buscar en esta zona» sí consulta bajo demanda.
-- **Actividad en directo (experimental):** extensión WidgetKit/ActivityKit con hasta tres sitios que enlazan a la ficha de confirmación dentro de AquíEstuve. También puede aparecer en Dynamic Island. Se inicia y cierra desde Ajustes. Requiere que iOS la permita y que Sideloadly firme la extensión. **Tocar la actividad no registra una visita directamente**: abre la ficha para confirmar y evitar errores.
-- **Consumo:** no hay polling de mapas en segundo plano. Se reutiliza una caché local y se limitan las actualizaciones de la Actividad en directo. El modo Paseo v0.10 sigue siendo optativo.
-- Se conservan la estructura local de historial, las categorías corregidas, los lugares privados y las funciones de v0.10.
+- Pantalla principal **Pulse**: tarjeta contextual de estancia, tiempo actual, acceso a selección probable, dos tarjetas estadísticas y cronología de hoy. Reutiliza la caché local de Apple Maps/OSM, sin búsquedas en segundo plano.
+- Modo normal (predeterminado): CoreLocation Visits + significant changes. Modo Paseo: opcional, tres horas como máximo, GPS más preciso. Ahora exige desplazamiento sostenido antes de cerrar una parada; el GPS que oscila no crea estancias periódicas.
+- Reconciliación de registros físicamente solapados: combina duplicados no identificados y visitas a un mismo establecimiento. Nunca fusiona automáticamente dos establecimientos distintos o visitas consecutivas sin solapamiento. Conserva el estado confirmado y el intervalo completo. Copia local automática `visits-pre-pulse-013.json` antes de la primera migración.
+- Catálogo sin conexión con **323 categorías** buscables en 14 familias. Categorías editables también manualmente. Ejemplos: Escuela de Arquitectura, Colegio de Arquitectos, Sede de telecomunicaciones y oficinas.
+- El historial ya no muestra «Posible parada de paseo» después de que la estancia esté confirmada.
+- Se mantiene la prueba visual y diagnóstico de la Actividad en directo v0.12. El nuevo Pulse es la alternativa accesible dentro de la app mientras no se confirme que iOS representa esa extensión con firma Sideloadly.
 
-## Límites reales de iOS
+## Pruebas
 
-Las Actividades en directo **no pueden hacer búsquedas GPS ni consultar mapas directamente**. Su contenido se actualiza cuando la app ejecuta código (por ejemplo, al abrirla, buscar lugares o al recibir ciertos eventos de ubicación). Puede mostrar lugares desactualizados mientras iOS no despierta la app. Una Actividad en directo estándar puede terminar después de unas horas; no es un banner permanente sin restricciones. El widget real independiente de bloqueo **no se ha añadido**: esta entrega contiene una Actividad en directo en el bloqueo y Dynamic Island.
+`python -X utf8 Tests/check_source.py`; `swiftc -frontend -parse Source/*.swift LiveWidget/LivePlacesWidget.swift`; `swiftc Source/StayReconciliation.swift Tests/check_episodes.swift -o episodes && ./episodes` (macOS/Linux). Este código **no se ha compilado con el SDK de iOS**, pendiente de Xcode en GitHub Actions, bajo una sola ejecución manual.
 
-## Instalación desde Windows
-
-1. **Copia de seguridad antes de actualizar:** AquíEstuve → Ajustes → Copia completa JSON.
-2. Descomprime `AquiEstuve-Windows-Actualizacion-v0.12.zip`.
-3. Ejecuta `Actualizar-AquiEstuve.cmd` con Windows. Requiere Git, GitHub CLI y una sesión ya autorizada; NO los reinstala.
-4. Si GitHub completa la única compilación, `Salida/AquiEstuve-unsigned.ipa` estará listo para Sideloadly.
-5. Conecta tu iPhone, usa la **misma cuenta de Apple y el mismo bundle ID** que en la instalación previa y pulsa Start. No elimines la app anterior: así debería conservar sus datos.
-6. Para probar la Actividad en directo: iOS → Ajustes → AquíEstuve → Actividades en directo (si aparece), activarlas; AquíEstuve → Ajustes → «Mostrar lugares en pantalla de bloqueo». Bloquea el iPhone. Si la extensión no aparece o Sideloadly la rechaza, conserva tu instalación anterior y reporta el error exacto.
-
-## Para compilar sin widget (solo si la firma de la extensión falla)
-
-El generador `python tools/generate_project.py --no-live` genera un proyecto **sin** el target de la extensión. No lo uses sobre el repositorio durante la prueba principal: requeriría otra compilación. La app principal mantiene las funciones de mapa, clasificación y recorrido; el botón de Actividad en directo informa si falta la extensión.
-
-## Seguridad, costes y pruebas
-
-- Sin Vercel, sin servidores propios y sin proveedores de pago.
-- `python3 Tests/check_source.py` comprueba los 14 casos locales.
-- `swiftc -frontend -parse Source/*.swift LiveWidget/*.swift` verifica la sintaxis (en un host con Swift).
-- `plutil -lint AquiEstuve.xcodeproj/project.pbxproj` valida la estructura OpenStep.
-- Estas comprobaciones **no sustituyen compilar con Xcode ni probar la extensión y su firma en el iPhone**.
-- GitHub Actions solo se lanza manualmente y los artefactos se conservan un día.
-
-
-## 0.12 — Fusión de duplicados y diagnóstico del panel
-
-- **Duplicados confirmados por ti:** abre un sitio de la lista cercana y pulsa
-  «Es el mismo lugar que otro…»; o entra en «Mis lugares» y elige «Fusionar».
-  Se conserva el nombre del primer sitio y se reasignan las visitas del segundo.
-  Ambos identificadores se guardan como equivalentes, incluso tras reiniciar la app.
-  No se fusionan sitios automáticamente por compartir nombre o proximidad.
-- **Posibles repetidos:** en la pantalla principal se proponen algunas parejas de
-  nombre, tipo y distancia compatibles. Estas son sugerencias, NO fusiones.
-- **Bancos:** icono de edificio bancario en lugar de llave inglesa.
-- **Actividad en directo:** interfaz simplificada en Lock Screen / Dynamic Island
-  y prueba visual explícita sin candidatos, GPS ni visitas.
-  En Ajustes → Pantalla de bloqueo pulsa «Prueba visual del panel» y después
-  «Ver diagnóstico de iOS y extensión». Que una actividad esté activa **no
-  garantiza** que WidgetKit la esté dibujando. Si incluso la prueba visual
-  no aparece, captura el diagnóstico y revisaremos el firmado/extensión.
-- **Privacidad:** el registro permanece local. No se transmite un historial de
-  ubicaciones a GitHub, ni se usan APIs de pago ni seguimiento GPS continuo.
-
-La extensión de Live Activity y la app principal requieren validación real en Xcode
-antes de que esta versión se considere lista para el teléfono. El instalador no
-puede firmar la IPA por ti y no se debe desinstalar la aplicación existente.
+Antes de instalar, exporta `Copia completa JSON`, guarda el archivo fuera del móvil y conserva v0.12 hasta comprobar que la instalación de v0.13 funciona. La presencia de la extensión de ActivityKit en la IPA no demuestra que Sideloadly/iOS pueda mostrar su vista ampliada.
