@@ -77,7 +77,8 @@ private struct DraggablePlaceMap: UIViewRepresentable {
         return map
     }
     func updateUIView(_ map: MKMapView, context: Context) {
-        if let marker = map.annotations.first(where: { $0 is MKPointAnnotation }) {
+        context.coordinator.parent = self
+        if let marker = map.annotations.first(where: { $0 is MKPointAnnotation }) as? MKPointAnnotation {
             marker.coordinate = point.coordinate
         }
     }
