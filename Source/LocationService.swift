@@ -263,19 +263,20 @@ struct NearbyNotificationCache {
         return nil
     }
 
+    /// Full cached nearby set for Radar. Unlike notification suggestions, NEVER limit to three.
+    /// Reads only local files; no GPS start, map queries or network requests.
     @MainActor
-    static func suggestions(for point: GeoPoint) -> [PlaceCandidate] {
+    static func radarCandidates(for point: GeoPoint, radius: Double = 400) -> [PlaceCandidate] {
         let store = VisitStore.shared
         var choices = store.places
-            .filter { $0.position.distance(to: point) <= 180 }
+            .filter { $0.position.distance(to: point) <= radius }
             .map { store.savedCandidate(for: $0, near: point) }
-
         if let data = try? Data(contentsOf: fileURL),
            let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data),
            Date().timeIntervalSince(snapshot.recordedAt) < 3 * 3600,
-           snapshot.center.distance(to: point) < 250 {
+           snapshot.center.distance(to: point) < 350 {
             choices.append(contentsOf: snapshot.candidates.filter {
-                $0.position.distance(to: point) <= 180
+                $0.position.distance(to: point) <= radius
             }.map { item in
                 var revised = item
                 revised.distance = item.position.distance(to: point)
@@ -283,11 +284,19 @@ struct NearbyNotificationCache {
             })
         }
         var seen = Set<String>()
-        return choices.sorted {
-            if $0.relevanceScore != $1.relevanceScore { return $0.relevanceScore > $1.relevanceScore }
-            return $0.distance < $1.distance
-        }.filter { seen.insert($0.id).inserted }.prefix(3).map { $0 }
+        return choices.sorted { $0.distance < $1.distance }
+            .filter { seen.insert($0.id).inserted }
     }
+
+    @MainActor
+    static func suggestions(for point: GeoPoint) -> [PlaceCandidate] {
+        Array(radarCandidates(for: point, radius: 180)
+            .sorted {
+                if $0.relevanceScore == $1.relevanceScore { return $0.distance < $1.distance }
+                return $0.relevanceScore > $1.relevanceScore
+            }.prefix(3))
+    }
+
 }
 
 private struct VisitNotificationPayload: Codable {

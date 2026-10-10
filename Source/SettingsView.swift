@@ -75,7 +75,7 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Acerca de") {
-                LabeledContent("Versión", value: "0.13 · Pulse")
+                LabeledContent("Versión", value: "0.14 · Radar y Guía")
                 LabeledContent("Coste", value: "0 €")
                 Text("La detección de visitas de iOS no es inmediata ni garantiza reconocer dos negocios contiguos. Puedes corregir cualquier estancia en Historial.")
                     .font(.footnote).foregroundStyle(.secondary)

@@ -18,7 +18,7 @@ struct RootView: View {
                 PulseView(openExplorer: $openExplorer)
                     .navigationDestination(isPresented: $openExplorer) { NowView() }
             }
-                .tabItem { Label("Pulse", systemImage: "waveform.path") }.tag(0)
+                .tabItem { Label("Radar", systemImage: "scope") }.tag(0)
             NavigationStack { HistoryView() }
                 .tabItem { Label("Historial", systemImage: "clock.arrow.circlepath") }.tag(1)
             NavigationStack { StatisticsView() }

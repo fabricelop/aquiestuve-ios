@@ -29,6 +29,8 @@ jobs:
           python3 Tests/check_source.py
           swiftc Source/StayReconciliation.swift Tests/check_episodes.swift -o /tmp/aquiestuve-episode-tests
           /tmp/aquiestuve-episode-tests
+          swiftc Source/RadarRules.swift Tests/check_radar.swift -o /tmp/aquiestuve-radar-tests
+          /tmp/aquiestuve-radar-tests
           plutil -lint AquiEstuve.xcodeproj/project.pbxproj
           plutil -lint Source/Info.plist LiveWidget/Info.plist
           python3 tools/generate_project.py
