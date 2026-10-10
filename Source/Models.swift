@@ -42,7 +42,7 @@ struct Stay: Identifiable, Codable {
     func duration(asOf date: Date) -> TimeInterval { max(0, (departure ?? date).timeIntervalSince(arrival)) }
 }
 
-struct PlaceCandidate: Identifiable, Hashable {
+struct PlaceCandidate: Identifiable, Hashable, Codable {
     var id: String { source.rawValue + ":" + sourceKey }
     let source: PlaceSource
     let sourceKey: String
@@ -52,6 +52,8 @@ struct PlaceCandidate: Identifiable, Hashable {
     var distance: Double = 0
     var visits: Int = 0
     var savedID: UUID?
+    // Optional and never required to identify a place. Sourced from public map metadata.
+    var address: String? = nil
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }

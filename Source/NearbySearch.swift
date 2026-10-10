@@ -36,11 +36,17 @@ final class NearbySearch: ObservableObject {
                 guard let name = item.name, !name.isEmpty else { return nil }
                 let position = GeoPoint(item.placemark.coordinate)
                 let key = "\(name.lowercased())-\(Int(position.latitude * 100000))-\(Int(position.longitude * 100000))"
+                let street = [item.placemark.thoroughfare, item.placemark.subThoroughfare]
+                    .compactMap { $0 }.joined(separator: " ")
+                let address = [street.isEmpty ? nil : street, item.placemark.locality]
+                    .compactMap { $0 }.joined(separator: ", ")
                 return PlaceCandidate(source: .apple, sourceKey: key, name: name,
-                    category: item.pointOfInterestCategory?.rawValue ?? "Establecimiento", position: position)
+                    category: item.pointOfInterestCategory?.rawValue ?? "Establecimiento", position: position,
+                    address: address.isEmpty ? nil : address)
             }
             appleCount = found.count
             candidates = combined(found, near: center, radius: radius)
+            NearbyNotificationCache.save(candidates, center: center)
         } catch {
             warning = "Apple Maps no respondió: \(error.localizedDescription)"
             candidates = combined([], near: center, radius: radius)
@@ -54,6 +60,7 @@ final class NearbySearch: ObservableObject {
             osmCount = cache.places.count
             candidates = combined(candidates.filter { $0.source == .apple },
                                   plus: cache.places, near: center, radius: radius)
+            NearbyNotificationCache.save(candidates, center: center)
             return
         }
         // Persistent 10-minute minimum to respect the community Overpass service.
@@ -91,13 +98,19 @@ final class NearbySearch: ObservableObject {
                 guard center.distance(to: position) <= radius else { return nil }
                 let category = element.tags?["amenity"] ?? element.tags?["shop"] ??
                                element.tags?["tourism"] ?? element.tags?["leisure"] ?? "Establecimiento"
+                let street = [element.tags?["addr:street"], element.tags?["addr:housenumber"]]
+                    .compactMap { $0 }.joined(separator: " ")
+                let address = [street.isEmpty ? nil : street, element.tags?["addr:city"]]
+                    .compactMap { $0 }.joined(separator: ", ")
                 return PlaceCandidate(source: .osm, sourceKey: "\(element.type)/\(element.id)",
-                                      name: name, category: category, position: position)
+                                      name: name, category: category, position: position,
+                                      address: address.isEmpty ? nil : address)
             }
             osmCount = found.count
             osmCache[key] = (Date(), found)
             candidates = combined(candidates.filter { $0.source == .apple },
                                   plus: found, near: center, radius: radius)
+            NearbyNotificationCache.save(candidates, center: center)
         } catch { warning = "No se pudo consultar OpenStreetMap: \(error.localizedDescription)" }
     }
 
@@ -115,11 +128,27 @@ final class NearbySearch: ObservableObject {
                 }
                 continue
             }
-            if output.contains(where: {
+            // OSM can provide a more precise category than Apple's generic "store".
+            // Enrich ONLY the displayed candidate; never overwrite user-saved categories.
+            if let matchIndex = output.firstIndex(where: {
                 $0.name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current) ==
                 item.name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current) &&
                 $0.position.distance(to: item.position) < 30
-            }) { continue }
+            }) {
+                let existing = output[matchIndex]
+                let appleGeneric = existing.categoryGroup == .others ||
+                    existing.categoryLabel == "Tienda" || existing.categoryLabel == "Alimentación y mercados"
+                let osmSpecific = item.categoryGroup != .others &&
+                    item.categoryLabel != "Tienda" && item.categoryLabel != "Alimentación y mercados"
+                if item.source == .osm && existing.source == .apple &&
+                   existing.savedID == nil && appleGeneric && osmSpecific {
+                    output[matchIndex] = PlaceCandidate(source: existing.source, sourceKey: existing.sourceKey,
+                        name: existing.name, category: item.category, position: existing.position,
+                        distance: existing.distance, visits: existing.visits,
+                        savedID: existing.savedID, address: existing.address ?? item.address)
+                }
+                continue
+            }
             output.append(item)
         }
         return output.sorted {

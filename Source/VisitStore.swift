@@ -55,15 +55,26 @@ final class VisitStore: ObservableObject {
         persist()
     }
 
-    func removePersonalPlace(_ place: Place) {
-        guard place.isPrivate else { return }
-        // Keep the visit in the history without falsely reassigning it to another place.
-        for index in stays.indices where stays[index].placeID == place.id {
-            stays[index].placeID = nil
-            stays[index].status = .unresolved
+    /// Delete any saved place, whether created privately or registered from a POI.
+    /// Optionally delete its visit records; otherwise preserve them as unclassified.
+    /// Neither choice affects visits assigned to any other place.
+    func deletePlace(_ place: Place, deleteVisits: Bool) {
+        guard places.contains(where: { $0.id == place.id }) else { return }
+        if deleteVisits {
+            stays.removeAll(where: { $0.placeID == place.id })
+        } else {
+            for index in stays.indices where stays[index].placeID == place.id {
+                stays[index].placeID = nil
+                stays[index].status = .unresolved
+            }
         }
         places.removeAll(where: { $0.id == place.id })
         persist()
+    }
+
+    func removePersonalPlace(_ place: Place) {
+        guard place.isPrivate else { return }
+        deletePlace(place, deleteVisits: false)
     }
 
     func savedCandidate(for place: Place, near point: GeoPoint) -> PlaceCandidate {

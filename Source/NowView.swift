@@ -7,9 +7,33 @@ struct NowView: View {
     @StateObject private var search = NearbySearch()
     @State private var radius = 250.0
     @State private var showAll = false
+    @State private var selectedGroup: PlaceGroup = .all
     @State private var createPlace = false
+    @State private var placeQuery = ""
+    @State private var previewPlace: PlaceCandidate?
+    @FocusState private var isSearching: Bool
 
-    private var displayed: [PlaceCandidate] { showAll ? search.candidates : Array(search.candidates.prefix(7)) }
+    private var matchingPlaces: [PlaceCandidate] {
+        let normalized = placeQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        return search.candidates.filter { candidate in
+            (selectedGroup == .all || candidate.categoryGroup == selectedGroup) &&
+            (normalized.isEmpty || [candidate.name, candidate.categoryLabel, candidate.address ?? ""]
+                .contains { $0.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                    .contains(normalized) })
+        }
+    }
+    // Filtering always scans the complete results, not just the seven suggested rows.
+    private var displayed: [PlaceCandidate] {
+        let filtering = selectedGroup != .all || !placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return showAll || filtering ? matchingPlaces : Array(matchingPlaces.prefix(7))
+    }
+
+    private var availableGroups: [PlaceGroup] {
+        [.all] + PlaceGroup.allCases.filter { group in
+            group != .all && search.candidates.contains(where: { $0.categoryGroup == group })
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -34,8 +58,11 @@ struct NowView: View {
                     .padding()
                     .background(Color.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
                 } else {
-                    ContentUnavailableView("Sin estancia activa", systemImage: "location.slash",
-                        description: Text("Elige un lugar para registrar una visita o deja que iOS detecte una estancia."))
+                    Label("Sin estancia activa · selecciona un lugar o espera la detección automática",
+                          systemImage: "location.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if location.authorization == .notDetermined {
@@ -55,8 +82,21 @@ struct NowView: View {
                     Map(initialPosition: .region(MKCoordinateRegion(center: position.coordinate,
                           span: MKCoordinateSpan(latitudeDelta: 0.007, longitudeDelta: 0.007)))) {
                         UserAnnotation()
-                        ForEach(displayed) { item in
-                            Marker(item.name, coordinate: item.position.coordinate)
+                        ForEach(matchingPlaces) { item in
+                            Annotation(item.name, coordinate: item.position.coordinate) {
+                                Button {
+                                    isSearching = false
+                                    previewPlace = item
+                                } label: {
+                                    Image(systemName: item.categoryGroup.symbol)
+                                        .font(.title2)
+                                        .foregroundStyle(item.categoryGroup.color)
+                                        .padding(4)
+                                        .background(.regularMaterial, in: Circle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Ver ficha: \(item.name)")
+                            }
                         }
                     }
                     .frame(height: 225)
@@ -81,36 +121,106 @@ struct NowView: View {
                     .onChange(of: radius) { _, newValue in
                         Task { await search.search(near: position, radius: newValue) }
                     }
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Buscar sitio, calle o categoría", text: $placeQuery)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .submitLabel(.done)
+                            .focused($isSearching)
+                            .onSubmit { isSearching = false }
+                            .accessibilityLabel("Filtrar lugares cercanos")
+                        if !placeQuery.isEmpty {
+                            Button {
+                                placeQuery = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                            }
+                            .accessibilityLabel("Borrar búsqueda")
+                        }
+                    }
+                    .padding(12)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(availableGroups) { group in
+                                Button {
+                                    selectedGroup = group
+                                } label: {
+                                    Label(group.title, systemImage: group.symbol)
+                                        .font(.caption.weight(.semibold))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                        .background(selectedGroup == group ? group.color.opacity(0.2) : Color.secondary.opacity(0.1),
+                                                    in: Capsule())
+                                        .overlay(Capsule().strokeBorder(selectedGroup == group ? group.color : .clear,
+                                                                        lineWidth: 1.4))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(selectedGroup == group ? .isSelected : [])
+                            }
+                        }
+                    }
+                    .accessibilityLabel("Filtrar lugares por categoría")
                     HStack {
-                        Text("\(search.candidates.count) encontrados · Apple: \(search.appleCount) · OSM: \(search.osmCount)")
+                        Text(placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedGroup == .all
+                             ? "\(search.candidates.count) encontrados · Apple: \(search.appleCount) · OSM: \(search.osmCount)"
+                             : "\(matchingPlaces.count) coincidencias de \(search.candidates.count) lugares")
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
-                        Button(showAll ? "Sugeridos" : "Ver todos") { showAll.toggle() }
-                            .font(.subheadline.weight(.semibold))
+                        if placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedGroup == .all {
+                            Button(showAll ? "Sugeridos" : "Ver todos") { showAll.toggle() }
+                                .font(.subheadline.weight(.semibold))
+                        }
                     }
                     ForEach(displayed) { item in
-                        Button {
-                            store.assign(item)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: item.source == .personal ? "house.fill" : "mappin.circle.fill")
-                                    .font(.title2).foregroundStyle(.indigo)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(item.name).fontWeight(.semibold).foregroundStyle(.primary)
-                                    Text("\(item.category) · \(item.distance.readableDistance)" +
-                                         (item.visits > 0 ? " · \(item.visits) visitas" : ""))
-                                        .font(.caption).foregroundStyle(.secondary)
+                        HStack(spacing: 10) {
+                            Button {
+                                isSearching = false
+                                previewPlace = item
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: item.categoryGroup.symbol)
+                                        .font(.title2).foregroundStyle(item.categoryGroup.color)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(item.name).fontWeight(.semibold).foregroundStyle(.primary)
+                                        Text("\(item.categoryLabel) · \(item.distance.readableDistance)" +
+                                             (item.visits > 0 ? " · \(item.visits) visitas" : ""))
+                                            .font(.caption).foregroundStyle(.secondary)
+                                        if let address = item.address, !address.isEmpty {
+                                            Text(address).font(.caption2).foregroundStyle(.secondary)
+                                                .lineLimit(2)
+                                        }
+                                    }
+                                    Spacer(minLength: 0)
+                                    if store.activeStay?.placeID == item.savedID && item.savedID != nil {
+                                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                    } else {
+                                        Image(systemName: "checkmark.circle").foregroundStyle(.secondary)
+                                    }
                                 }
-                                Spacer()
-                                if store.activeStay?.placeID == item.savedID && item.savedID != nil {
-                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                                } else { Image(systemName: "checkmark.circle").foregroundStyle(.secondary) }
+                                .padding(.vertical, 6)
+                                .contentShape(Rectangle())
                             }
-                            .padding(.vertical, 6)
-                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Ver lugar y confirmar: \(item.name)")
+                            Button {
+                                isSearching = false
+                                previewPlace = item
+                            } label: {
+                                Image(systemName: "map")
+                                    .font(.title3)
+                                    .frame(width: 34, height: 44)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Ver en mapa: \(item.name)")
                         }
-                        .buttonStyle(.plain)
                         Divider()
+                    }
+                    if matchingPlaces.isEmpty && (!placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedGroup != .all) {
+                        Text("No hay coincidencias en los lugares cargados. Amplía el radio, usa OSM o crea uno nuevo.")
+                            .font(.subheadline).foregroundStyle(.secondary)
                     }
                     if search.candidates.isEmpty && !search.loading {
                         Text("No hay resultados todavía. Prueba a actualizar, ampliar el radio o crear un lugar.")
@@ -118,7 +228,7 @@ struct NowView: View {
                     }
                     HStack(spacing: 12) {
                         Button { Task { await search.addOSM(near: position, radius: radius) } } label: {
-                            Label("Ampliar con OSM", systemImage: "globe.europe.africa")
+                            Label("Buscar más (OSM)", systemImage: "globe.europe.africa")
                         }
                         .buttonStyle(.bordered)
                         .disabled(search.loading)
@@ -130,7 +240,7 @@ struct NowView: View {
                     if let warning = search.warning {
                         Text(warning).font(.caption).foregroundStyle(.orange)
                     }
-                    Text("© OpenStreetMap contributors · Resultados sujetos a disponibilidad. No se hacen consultas continuas.")
+                    Text("OSM amplía la lista con lugares del mapa colaborativo (máx. 700 m, consulta manual cada 10 min). © OpenStreetMap contributors.")
                         .font(.caption2).foregroundStyle(.secondary)
                 } else {
                     Button("Buscar mi posición") { location.refreshPosition() }
@@ -147,6 +257,54 @@ struct NowView: View {
         .onAppear { location.refreshPosition() }
         .sheet(isPresented: $createPlace) {
             if let point = location.coordinate { CreatePlaceView(initial: point) }
+        }
+        .sheet(item: $previewPlace) { item in
+            NearbyPlacePreview(item: item) {
+                store.assign(item)
+                previewPlace = nil
+            }
+        }
+    }
+}
+
+private struct NearbyPlacePreview: View {
+    @Environment(\.dismiss) private var dismiss
+    let item: PlaceCandidate
+    let confirm: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(item.name).font(.title2.bold())
+                    Text("\(item.categoryLabel) · \(item.distance.readableDistance) de tu posición")
+                        .foregroundStyle(.secondary)
+                    if let address = item.address, !address.isEmpty {
+                        Label(address, systemImage: "mappin.and.ellipse")
+                            .font(.subheadline)
+                    }
+                    Map(initialPosition: .region(MKCoordinateRegion(
+                        center: item.position.coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)))) {
+                        Marker(item.name, coordinate: item.position.coordinate)
+                    }
+                    .frame(height: 350)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    Text("Revisa el pin antes de confirmar. El registro de la visita solo cambia cuando pulses el botón de confirmación.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Confirmar que estoy aquí") { confirm() }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                }
+                .padding()
+            }
+            .navigationTitle("Ubicación del lugar")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
         }
     }
 }
