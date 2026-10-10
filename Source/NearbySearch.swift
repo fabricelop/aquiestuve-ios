@@ -57,6 +57,7 @@ final class NearbySearch: ObservableObject {
             coverageLimited = found.count >= 45
             candidates = combined(found, near: center, radius: radius)
             NearbyNotificationCache.save(candidates, center: center)
+            Task { await LivePlacesManager.shared.refresh(near: center) }
         } catch {
             warning = "Apple Maps no respondió: \(error.localizedDescription)"
             candidates = combined([], near: center, radius: radius)
@@ -71,6 +72,7 @@ final class NearbySearch: ObservableObject {
             candidates = combined(candidates.filter { $0.source == .apple },
                                   plus: cache.places, near: center, radius: radius)
             NearbyNotificationCache.save(candidates, center: center)
+            Task { await LivePlacesManager.shared.refresh(near: center) }
             return
         }
         // Persistent 10-minute minimum to respect the community Overpass service.
@@ -121,6 +123,7 @@ final class NearbySearch: ObservableObject {
             candidates = combined(candidates.filter { $0.source == .apple },
                                   plus: found, near: center, radius: radius)
             NearbyNotificationCache.save(candidates, center: center)
+            Task { await LivePlacesManager.shared.refresh(near: center) }
         } catch { warning = "No se pudo consultar OpenStreetMap: \(error.localizedDescription)" }
     }
 

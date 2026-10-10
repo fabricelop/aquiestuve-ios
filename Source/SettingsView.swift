@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var location: LocationService
     @EnvironmentObject private var store: VisitStore
     @State private var export: ExportFile?
+    @StateObject private var live = LivePlacesManager.shared
     var body: some View {
         Form {
             Section("Localización") {
@@ -44,6 +45,18 @@ struct SettingsView: View {
                 Text("Esta prueba envía un aviso después de 5 segundos. No crea una visita ni prueba la detección GPS. Bloquea el iPhone para comprobar si aparece.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Pantalla de bloqueo · Actividad en directo") {
+                if live.enabled {
+                    Button("Cerrar panel de lugares") { live.stop() }
+                } else {
+                    Button("Mostrar lugares en pantalla de bloqueo") {
+                        live.start(near: location.coordinate)
+                    }
+                }
+                if !live.status.isEmpty { Text(live.status).font(.caption) }
+                Text("El panel muestra hasta tres candidatos recientes. Tocar un lugar abre su ficha para confirmar; no registra visitas por accidente. No consulta GPS por su cuenta y puede dejar de actualizarse si iOS no despierta la app. iOS limita su duración.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
             Section("Datos y privacidad") {
                 LabeledContent("Lugares guardados", value: "\(store.places.count)")
                 LabeledContent("Visitas registradas", value: "\(store.stays.count)")
@@ -57,7 +70,7 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Acerca de") {
-                LabeledContent("Versión", value: "0.10 · Prueba")
+                LabeledContent("Versión", value: "0.11 · Prueba")
                 LabeledContent("Coste", value: "0 €")
                 Text("La detección de visitas de iOS no es inmediata ni garantiza reconocer dos negocios contiguos. Puedes corregir cualquier estancia en Historial.")
                     .font(.footnote).foregroundStyle(.secondary)

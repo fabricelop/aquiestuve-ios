@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       request_id:
-        description: 'Identificador de ejecución para evitar confundir compilaciones'
+        description: 'Identificador para distinguir esta compilación'
         required: false
         default: 'manual'
         type: string
@@ -23,9 +23,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Validar estructura sin gastar compilaciones adicionales
-        run: python3 Tests/check_source.py
-      - name: Compilar aplicación nativa sin firma
+      - name: Comprobaciones locales y estructura Xcode
+        run: |
+          set -euo pipefail
+          python3 Tests/check_source.py
+          plutil -lint AquiEstuve.xcodeproj/project.pbxproj
+          plutil -lint Source/Info.plist LiveWidget/Info.plist
+          python3 tools/generate_project.py
+          git diff --exit-code -- AquiEstuve.xcodeproj/project.pbxproj
+      - name: Compilar app y extensión de Actividad en directo sin firma
         run: |
           set -euo pipefail
           xcodebuild -project AquiEstuve.xcodeproj \
@@ -36,14 +42,15 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
-      - name: Preparar IPA sin firmar
+      - name: Preparar IPA incluyendo la extensión
         run: |
           set -euo pipefail
+          test -d build/Build/Products/Release-iphoneos/AquiEstuve.app/PlugIns/AquiEstuveLiveWidget.appex
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/AquiEstuve.app Payload/
           zip -q -r AquiEstuve-unsigned.ipa Payload
-          test -s AquiEstuve-unsigned.ipa
-      - name: Guardar IPA por un día
+          unzip -t AquiEstuve-unsigned.ipa >/dev/null
+      - name: Guardar IPA durante un día
         uses: actions/upload-artifact@v4
         with:
           name: AquiEstuve-unsigned-IPA

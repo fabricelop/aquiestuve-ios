@@ -120,6 +120,7 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         accuracy = location.horizontalAccuracy
         errorText = nil
         observeWalk(location)
+        Task { await LivePlacesManager.shared.refreshIfUseful(near: GeoPoint(location.coordinate)) }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -133,6 +134,7 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         if pending, let visitID = VisitStore.shared.activeStay?.id {
             LocalNotifications.sendConfirmationRequest(near: GeoPoint(visit.coordinate), visitID: visitID)
         }
+        Task { await LivePlacesManager.shared.refresh(near: GeoPoint(visit.coordinate)) }
     }
 }
 
@@ -235,6 +237,15 @@ struct NearbyNotificationCache {
     }
 
     @MainActor
+    static func candidate(withID id: String) -> PlaceCandidate? {
+        if let data = try? Data(contentsOf: fileURL),
+           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) {
+            return snapshot.candidates.first(where: { $0.id == id })
+        }
+        return nil
+    }
+
+    @MainActor
     static func suggestions(for point: GeoPoint) -> [PlaceCandidate] {
         let store = VisitStore.shared
         var choices = store.places
@@ -255,7 +266,7 @@ struct NearbyNotificationCache {
         }
         var seen = Set<String>()
         return choices.sorted {
-            if ($0.visits > 0) != ($1.visits > 0) { return $0.visits > 0 }
+            if $0.relevanceScore != $1.relevanceScore { return $0.relevanceScore > $1.relevanceScore }
             return $0.distance < $1.distance
         }.filter { seen.insert($0.id).inserted }.prefix(3).map { $0 }
     }

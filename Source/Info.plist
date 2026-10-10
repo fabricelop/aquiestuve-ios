@@ -14,5 +14,11 @@
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
     <key>NSLocationWhenInUseUsageDescription</key><string>Mostrarte los lugares cercanos y registrar tus estancias cuando lo solicites.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>Detectar llegadas y salidas incluso cuando el iPhone esté bloqueado, para tu historial privado.</string>
+    <key>NSSupportsLiveActivities</key><true/>
+    <key>CFBundleURLTypes</key><array>
+      <dict><key>CFBundleURLName</key><string>com.aquiestuve.ios</string>
+        <key>CFBundleURLSchemes</key><array><string>aquiestuve</string></array>
+      </dict>
+    </array>
     <key>UIBackgroundModes</key><array><string>location</string></array>
 </dict></plist>

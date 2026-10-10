@@ -4,12 +4,18 @@ import MapKit
 struct NowView: View {
     @EnvironmentObject private var store: VisitStore
     @EnvironmentObject private var location: LocationService
+    @ObservedObject private var deepLinks = PlaceDeepLinkRouter.shared
     @StateObject private var search = NearbySearch()
     @AppStorage("ae_show_map") private var showMap = true
     @State private var radius = 250.0
     @State private var mapPosition: MapCameraPosition = .automatic
     @State private var fullMap = false
     @State private var showAll = false
+    @AppStorage("ae_venue_mode") private var venueMode = "probables"
+    @State private var venueFilter: VenueKind = .all
+    @State private var clusterItems: [PlaceCandidate] = []
+    @State private var compactZoomStep = 0
+    @State private var compactRecenterStep = 0
     @State private var selectedGroup: PlaceGroup = .all
     @State private var createPlace = false
     @State private var placeQuery = ""
@@ -42,16 +48,21 @@ struct NowView: View {
                 .contains { $0.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
                     .contains(normalized) } ||
              (remoteMode == "name:" + normalized && remoteIDs.contains(item.id)))
+        }.filter { candidate in
+            (venueFilter == .all || candidate.venueKind == venueFilter) &&
+            (venueMode == "todos" || candidate.isProbable || !normalized.isEmpty ||
+             selectedGroup != .all || venueFilter != .all)
         }.sorted { lhs, rhs in
-            if lhs.visits > 0 && rhs.visits == 0 && normalized.isEmpty { return true }
-            if rhs.visits > 0 && lhs.visits == 0 && normalized.isEmpty { return false }
+            if normalized.isEmpty && venueMode == "probables" {
+                if lhs.relevanceScore != rhs.relevanceScore { return lhs.relevanceScore > rhs.relevanceScore }
+            }
             return lhs.distance < rhs.distance
         }
     }
 
     private var displayed: [PlaceCandidate] {
         let filterActive = selectedGroup != .all || !placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return showAll || filterActive ? matchingPlaces : Array(matchingPlaces.prefix(7))
+        return showAll || filterActive ? matchingPlaces : Array(matchingPlaces.prefix(15))
     }
 
     private var availableGroups: [PlaceGroup] {
@@ -71,6 +82,15 @@ struct NowView: View {
         remoteMode = "name:" + key.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
         isSearching = false
         Task { await search.searchByName(key, near: center, radius: searchRadius) }
+    }
+
+    private func showRequestedPlace() {
+        guard let id = deepLinks.requestedPlaceID else { return }
+        if let item = (search.candidates + search.exploreResults).first(where: { $0.id == id }) ??
+                      NearbyNotificationCache.candidate(withID: id) {
+            deepLinks.requestedPlaceID = nil
+            previewPlace = item
+        }
     }
 
     private func categorySearch(near center: GeoPoint) {
@@ -140,26 +160,26 @@ struct NowView: View {
                         }
                     }
                     if showMap {
-                        Map(position: $mapPosition, interactionModes: .all) {
-                            UserAnnotation()
-                            ForEach(matchingPlaces) { item in
-                                Annotation(item.name, coordinate: item.position.coordinate) {
-                                    Button { isSearching = false; previewPlace = item } label: {
-                                        Image(systemName: item.categoryGroup.symbol)
-                                            .font(.title3)
-                                            .foregroundStyle(item.categoryGroup.color)
-                                            .padding(5)
-                                            .background(.regularMaterial, in: Circle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Ver lugar: \(item.name)")
-                                }
+                        ZStack(alignment: .topTrailing) {
+                            ClusteredPlacesMap(places: matchingPlaces, center: position,
+                                               initialRadius: radius,
+                                               zoomStep: compactZoomStep,
+                                               recenterStep: compactRecenterStep,
+                                               onSelect: { item in previewPlace = item },
+                                               onCluster: { items in clusterItems = items })
+                            VStack(spacing: 8) {
+                                Button { compactZoomStep += 1 } label: { Image(systemName: "plus.magnifyingglass") }
+                                Button { compactZoomStep -= 1 } label: { Image(systemName: "minus.magnifyingglass") }
+                                Button { compactRecenterStep += 1 } label: { Image(systemName: "location.fill") }
                             }
+                            .buttonStyle(.borderedProminent)
+                            .padding(7)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .padding(8)
                         }
-                        .mapControls { MapCompass(); MapScaleView(); MapUserLocationButton() }
                         .frame(height: 285)
                         .clipShape(RoundedRectangle(cornerRadius: 15))
-                        .accessibilityLabel("Mapa interactivo. Pellizca para ampliar y desplázate para explorar.")
+                        .accessibilityLabel("Mapa con agrupación de establecimientos y zoom")
                     }
                     HStack {
                         Text("Lugares cercanos").font(.title3.bold())
@@ -215,6 +235,23 @@ struct NowView: View {
                             .buttonStyle(.borderedProminent)
                             .disabled(placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).count < 2 || search.loading)
                     }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Picker("Qué sitios mostrar", selection: $venueMode) {
+                            Text("Probables").tag("probables")
+                            Text("Todos").tag("todos")
+                        }
+                        .pickerStyle(.segmented)
+                        Picker("Tipo de lugar", selection: $venueFilter) {
+                            ForEach(VenueKind.allCases) { kind in
+                                Text(kind.title).tag(kind)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        Text(venueMode == "probables"
+                             ? "Se priorizan lugares conocidos, comercios y espacios públicos. Ningún sitio se elimina."
+                             : "Mostrando todos los resultados conocidos, incluidos oficinas y otros.")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 7) {
                             ForEach(availableGroups) { group in
@@ -244,7 +281,7 @@ struct NowView: View {
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         if selectedGroup == .all && placeQuery.isEmpty {
-                            Button(showAll ? "Sugeridos" : "Ver todos") { showAll.toggle() }
+                            Button(showAll ? "Ver 15" : "Mostrar lista completa") { showAll.toggle() }
                                 .font(.caption.bold())
                         }
                     }
@@ -308,7 +345,7 @@ struct NowView: View {
                 await search.search(near: point, radius: radius)
             }
         }
-        .onAppear { location.refreshPosition() }
+        .onAppear { location.refreshPosition(); showRequestedPlace() }
         .sheet(isPresented: $createPlace) {
             if let point = location.coordinate { CreatePlaceView(initial: point) }
         }
@@ -318,9 +355,20 @@ struct NowView: View {
                 previewPlace = nil
             }
         }
+        .sheet(isPresented: Binding(
+            get: { !clusterItems.isEmpty },
+            set: { if !$0 { clusterItems = [] } }
+        )) {
+            GroupedPlacesList(items: clusterItems) { item in
+                clusterItems = []
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { previewPlace = item }
+            }
+        }
+        .onChange(of: deepLinks.requestedPlaceID) { _, _ in showRequestedPlace() }
         .fullScreenCover(isPresented: $fullMap) {
             if let point = location.coordinate {
-                FullPlaceMap(search: search, center: point, radius: radius) { item in
+                FullPlaceMap(search: search, center: point, radius: radius, selectedKind: venueFilter,
+                             showEverywhere: venueMode == "todos") { item in
                     fullMap = false
                     // Defer the second sheet until the full-screen modal is dismissed.
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { previewPlace = item }
@@ -335,60 +383,114 @@ private struct FullPlaceMap: View {
     @ObservedObject var search: NearbySearch
     let center: GeoPoint
     let radius: Double
+    let selectedKind: VenueKind
+    let showEverywhere: Bool
     let onSelect: (PlaceCandidate) -> Void
-    @State private var camera: MapCameraPosition
     @State private var visibleCenter: GeoPoint
     @State private var visibleRadius: Double
+    @State private var zoomStep = 0
+    @State private var recenterStep = 0
+    @State private var clusterItems: [PlaceCandidate] = []
 
-    init(search: NearbySearch, center: GeoPoint, radius: Double, onSelect: @escaping (PlaceCandidate) -> Void) {
-        self.search = search; self.center = center; self.radius = radius; self.onSelect = onSelect
-        _camera = State(initialValue: .region(MKCoordinateRegion(center: center.coordinate,
-                                  latitudinalMeters: radius * 2.5, longitudinalMeters: radius * 2.5)))
+    init(search: NearbySearch, center: GeoPoint, radius: Double,
+         selectedKind: VenueKind, showEverywhere: Bool,
+         onSelect: @escaping (PlaceCandidate) -> Void) {
+        self.search = search; self.center = center; self.radius = radius
+        self.selectedKind = selectedKind; self.showEverywhere = showEverywhere
+        self.onSelect = onSelect
         _visibleCenter = State(initialValue: center)
         _visibleRadius = State(initialValue: radius)
+    }
+
+    private var visibleCandidates: [PlaceCandidate] {
+        let combined = search.candidates + search.exploreResults.filter { extra in
+            !search.candidates.contains(where: { $0.id == extra.id })
+        }
+        return combined.filter { item in
+            (selectedKind == .all || item.venueKind == selectedKind) &&
+            (showEverywhere || item.isProbable)
+        }
     }
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                Map(position: $camera, interactionModes: .all) {
-                    UserAnnotation()
-                    ForEach(search.candidates + search.exploreResults.filter { new in
-                        !search.candidates.contains(where: { $0.id == new.id })
-                    }) { item in
-                        Annotation(item.name, coordinate: item.position.coordinate) {
-                            Button { onSelect(item) } label: {
-                                Image(systemName: item.categoryGroup.symbol)
-                                    .font(.title2).foregroundStyle(item.categoryGroup.color)
-                                    .padding(7).background(.regularMaterial, in: Circle())
-                            }
-                            .accessibilityLabel("Ver ficha de \(item.name)")
+                ClusteredPlacesMap(places: visibleCandidates, center: center, initialRadius: radius,
+                                   zoomStep: zoomStep, recenterStep: recenterStep,
+                                   onSelect: onSelect, onCluster: { items in clusterItems = items },
+                                   onViewport: { point, radius in
+                                       visibleCenter = point
+                                       visibleRadius = radius
+                                   })
+                    .ignoresSafeArea(edges: .bottom)
+                VStack {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 10) {
+                            Button { zoomStep += 1 } label: { Image(systemName: "plus.magnifyingglass") }
+                            Button { zoomStep -= 1 } label: { Image(systemName: "minus.magnifyingglass") }
+                            Button { recenterStep += 1 } label: { Image(systemName: "location.fill") }
                         }
+                        .font(.title2)
+                        .buttonStyle(.borderedProminent)
+                        .padding(10)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                     }
-                }
-                .mapControls { MapCompass(); MapScaleView(); MapUserLocationButton() }
-                .onMapCameraChange(frequency: .onEnd) { context in
-                    visibleCenter = GeoPoint(context.region.center)
-                    visibleRadius = min(3000, max(100, context.region.span.latitudeDelta * 111000 / 2))
-                }
-                VStack(spacing: 7) {
-                    Button {
-                        Task { await search.searchMapArea(near: visibleCenter, radius: visibleRadius) }
-                    } label: {
-                        Label("Buscar en esta zona", systemImage: "magnifyingglass")
+                    Spacer()
+                    VStack(spacing: 7) {
+                        Button {
+                            Task { await search.searchMapArea(near: visibleCenter, radius: visibleRadius) }
+                        } label: { Label("Buscar en esta zona", systemImage: "magnifyingglass") }
+                            .buttonStyle(.borderedProminent).disabled(search.loading)
+                        Text("\(visibleCandidates.count) sitios cargados. Toca un grupo para ver todos sus lugares.")
+                            .font(.caption2)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(search.loading)
-                    Text("Mover el mapa no realiza consultas. Pellizca para acercar o alejar.")
-                        .font(.caption2).padding(5)
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
                 }
-                .padding(14)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-                .padding(.bottom, 20)
+                .padding()
+            }
+            .sheet(isPresented: Binding(
+                get: { !clusterItems.isEmpty }, set: { if !$0 { clusterItems = [] } }
+            )) {
+                GroupedPlacesList(items: clusterItems) { item in
+                    clusterItems = []
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { onSelect(item) }
+                }
             }
             .navigationTitle("Explorar mapa")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
+        }
+    }
+}
+
+private struct GroupedPlacesList: View {
+    @Environment(\.dismiss) private var dismiss
+    let items: [PlaceCandidate]
+    let onSelect: (PlaceCandidate) -> Void
+    var body: some View {
+        NavigationStack {
+            List(items) { item in
+                Button {
+                    dismiss()
+                    onSelect(item)
+                } label: {
+                    HStack {
+                        Image(systemName: item.categoryGroup.symbol)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.name).fontWeight(.medium)
+                            Text("\(item.categoryLabel) · \(item.distance.readableDistance)")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("\(items.count) lugares agrupados")
+            .toolbar { ToolbarItem(placement: .confirmationAction) {
+                Button("Cerrar") { dismiss() }
+            } }
         }
     }
 }

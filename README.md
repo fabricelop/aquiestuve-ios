@@ -1,31 +1,38 @@
-# AquíEstuve 0.10 — Versión de pruebas nativa para iPhone
+# AquíEstuve v0.11 — Probables, mapa y panel de bloqueo
 
-App personal para reconocer y revisar estancias. **Sin pagos, cuentas, servidor propio, Vercel ni APIs de pago.** Historial privado en el teléfono; Apple Maps/OSM reciben búsquedas de zona solicitadas.
+Aplicación nativa SwiftUI + MapKit + Core Location. Código fuente abierto; **los datos de ubicación permanecen en el iPhone** y no se incluyen en el repositorio.
 
-## Qué incorpora
+## Cambios incluidos
 
-- **Ahora:** mapa ocultable (recuerda la preferencia), vista a pantalla completa con zoom/arrastre, pines pulsables y botón explícito «Buscar en esta zona». Radio 100/250/500/1.000 m con zoom y contador. Tocar una fila o pin **no registra visita**: solo «Confirmar que estoy aquí» lo hace.
-- **Búsqueda:** filtra inmediatamente sitios cargados, pero al pulsar «Buscar en zona» consulta Apple Maps por nombre a 1/3/5/10 km; búsqueda de categoría ampliada por petición; búsqueda por sectores (hasta cuatro) bajo demanda, para zonas densas. La disponibilidad y exhaustividad dependen de Apple Maps; no hay cobertura garantizada. Sin consultas al teclear, sin búsqueda repetitiva en segundo plano.
-- **OpenStreetMap:** ampliación manual hasta 700 m; intervalo mínimo de 10 minutos entre peticiones nuevas, caché local en memoria. Se intenta evitar duplicados y aprovechar categorías más específicas, sin sobrescribir correcciones del usuario.
-- **Categorías:** traducción de etiquetas conocidas, colores y filtros; edición persistente de la categoría incluso si nunca se visitó un lugar.
-- **Lugares:** privados separados de sitios visitados; borrar cualquier lugar y conservar las visitas como pendientes o borrar también las visitas accidentales.
-- **Historial:** vistas Todas/Pendientes/Identificadas, agrupación por día y corrección de llegada/salida; búsqueda de establecimientos en la **posición histórica** de una parada. Las pendientes no se contabilizan como visitas identificadas.
-- **Modo Paseo (opcional):** GPS de mayor consumo temporalmente para intentar detectar paradas de ~80 segundos o más y registrarlas como pendientes. Termina manualmente o a las 3 horas como máximo; al no existir garantía de eventos y precisión de iOS, algunas paradas breves no se detectarán. El modo normal sigue utilizando CLVisit y cambios significativos de posición.
-- **Estadísticas:** por 7/30/365 días, categorías, evolución de la última semana, comparativa temporal, sitios, media y pendientes por revisar.
-- **Pantalla de bloqueo:** notificaciones de visitas detectadas con candidatos de datos recientes; en Ajustes, prueba de notificación a los 5 segundos **sin crear una visita**. Esto NO es un widget de pantalla de bloqueo, ni asegura que iOS detecte paradas de 1 minuto.
+- **Probables / Todos:** los lugares privados, visitados y los negocios reconocibles tienen prioridad. El listado completo conserva oficinas y otras ubicaciones, sin eliminarlas de la búsqueda.
+- **Tipos de lugares:** comercios y locales, espacios públicos, oficinas y otros, y lugares personales. La categoría sigue siendo editable y se guarda.
+- **Mapa compacto o pantalla completa:** agrupación real de pines mediante `MKMapView`, controles `+`/`−`, botón de centrar y lista con todos los miembros de cada grupo. Cambiar la escala no hace nuevas consultas. «Buscar en esta zona» sí consulta bajo demanda.
+- **Actividad en directo (experimental):** extensión WidgetKit/ActivityKit con hasta tres sitios que enlazan a la ficha de confirmación dentro de AquíEstuve. También puede aparecer en Dynamic Island. Se inicia y cierra desde Ajustes. Requiere que iOS la permita y que Sideloadly firme la extensión. **Tocar la actividad no registra una visita directamente**: abre la ficha para confirmar y evitar errores.
+- **Consumo:** no hay polling de mapas en segundo plano. Se reutiliza una caché local y se limitan las actualizaciones de la Actividad en directo. El modo Paseo v0.10 sigue siendo optativo.
+- Se conservan la estructura local de historial, las categorías corregidas, los lugares privados y las funciones de v0.10.
+
+## Límites reales de iOS
+
+Las Actividades en directo **no pueden hacer búsquedas GPS ni consultar mapas directamente**. Su contenido se actualiza cuando la app ejecuta código (por ejemplo, al abrirla, buscar lugares o al recibir ciertos eventos de ubicación). Puede mostrar lugares desactualizados mientras iOS no despierta la app. Una Actividad en directo estándar puede terminar después de unas horas; no es un banner permanente sin restricciones. El widget real independiente de bloqueo **no se ha añadido**: esta entrega contiene una Actividad en directo en el bloqueo y Dynamic Island.
 
 ## Instalación desde Windows
 
-La compilación iOS requiere un runner macOS. El ZIP `AquiEstuve-Windows-v0.10.zip` contiene `Actualizar-AquiEstuve.cmd` y el parche de código para el **único** repositorio `fabricelop/aquiestuve-ios`. Descomprime todo el ZIP en una carpeta nueva y ejecuta el CMD cuando quieras compilar. Necesita Git y GitHub CLI ya instalados y autenticados en el PC (como en v0.9); no reinstala nada.
+1. **Copia de seguridad antes de actualizar:** AquíEstuve → Ajustes → Copia completa JSON.
+2. Descomprime `AquiEstuve-Windows-Actualizacion-v0.11.zip`.
+3. Ejecuta `Actualizar-AquiEstuve.cmd` con Windows. Requiere Git, GitHub CLI y una sesión ya autorizada; NO los reinstala.
+4. Si GitHub completa la única compilación, `Salida/AquiEstuve-unsigned.ipa` estará listo para Sideloadly.
+5. Conecta tu iPhone, usa la **misma cuenta de Apple y el mismo bundle ID** que en la instalación previa y pulsa Start. No elimines la app anterior: así debería conservar sus datos.
+6. Para probar la Actividad en directo: iOS → Ajustes → AquíEstuve → Actividades en directo (si aparece), activarlas; AquíEstuve → Ajustes → «Mostrar lugares en pantalla de bloqueo». Bloquea el iPhone. Si la extensión no aparece o Sideloadly la rechaza, conserva tu instalación anterior y reporta el error exacto.
 
-El instalador valida la sintaxis de PowerShell ANTES de modificar GitHub, exige que el repositorio sea público y que siga en la versión v0.9 conocida, actualiza solamente AquíEstuve, lanza a lo sumo una compilación manual para el commit nuevo, y recupera `Salida/AquiEstuve-unsigned.ipa`. Si la compilación falla, se detiene y no la repite automáticamente.
+## Para compilar sin widget (solo si la firma de la extensión falla)
 
-**Antes de instalar con Sideloadly:** AquíEstuve → Ajustes → «Copia completa JSON», guárdala fuera del iPhone. Selecciona la IPA nueva, el **mismo Apple ID** y las mismas opciones de firma; instala encima de la versión existente **sin desinstalarla**. Así deberían conservarse los datos; nunca prometemos conservación sin respaldo. No subas historial ni credenciales a GitHub.
+El generador `python tools/generate_project.py --no-live` genera un proyecto **sin** el target de la extensión. No lo uses sobre el repositorio durante la prueba principal: requeriría otra compilación. La app principal mantiene las funciones de mapa, clasificación y recorrido; el botón de Actividad en directo informa si falta la extensión.
 
-## Comprobaciones y límites
+## Seguridad, costes y pruebas
 
-Las fuentes Swift pasan el parser local (`swiftc -frontend -parse`) y `python Tests/check_source.py`. **Estos controles no sustituyen una compilación Xcode ni una prueba real en iPhone.** El artefacto unsigned IPA solo existirá cuando la compilación manual termine correctamente. El script de Windows incluye una verificación de sintaxis real con el PowerShell de tu ordenador.
-
-Sin cron, sin despliegues, sin ejecución por `push`, sin repetición automática de builds. Repo público = sin minutos facturables en el entorno público estándar de GitHub Actions, sujeto a las condiciones vigentes de GitHub. Las búsquedas Apple/OSM pueden tener límites y la precisión GPS depende de iOS.
-
-El widget real/Live Activity queda **pendiente de validar su instalación y firma gratuitas**. Esta versión aporta notificación interactiva y prueba de notificaciones como primera fase de la experiencia de pantalla bloqueada.
+- Sin Vercel, sin servidores propios y sin proveedores de pago.
+- `python3 Tests/check_source.py` comprueba los 14 casos locales.
+- `swiftc -frontend -parse Source/*.swift LiveWidget/*.swift` verifica la sintaxis (en un host con Swift).
+- `plutil -lint AquiEstuve.xcodeproj/project.pbxproj` valida la estructura OpenStep.
+- Estas comprobaciones **no sustituyen compilar con Xcode ni probar la extensión y su firma en el iPhone**.
+- GitHub Actions solo se lanza manualmente y los artefactos se conservan un día.
