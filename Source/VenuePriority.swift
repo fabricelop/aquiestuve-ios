@@ -50,3 +50,27 @@ extension PlaceCandidate {
         venueKind != .other || visits > 0 || savedID != nil
     }
 }
+
+/// Prefer a bank pictogram over the generic services wrench.
+extension PlaceCandidate {
+    var displaySymbol: String {
+        let label = categoryLabel.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        if label.contains("banco") || label.contains("cajero") ||
+           ["caixabank", "santander", "bbva", "bankinter", "sabadell", "unicaja", "ing bank"]
+              .contains(where: { name.localizedCaseInsensitiveContains($0) }) {
+            return "building.columns.fill"
+        }
+        return categoryGroup.symbol
+    }
+}
+extension Place {
+    var displaySymbol: String {
+        let label = categoryLabel.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        if label.contains("banco") || label.contains("cajero") ||
+           ["caixabank", "santander", "bbva", "bankinter", "sabadell", "unicaja", "ing bank"]
+              .contains(where: { name.localizedCaseInsensitiveContains($0) }) {
+            return "building.columns.fill"
+        }
+        return categoryGroup.symbol
+    }
+}

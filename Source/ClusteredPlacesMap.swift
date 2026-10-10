@@ -119,7 +119,7 @@ struct ClusteredPlacesMap: UIViewRepresentable {
             case .others, .all: color = .systemGray
             }
             view.markerTintColor = color
-            view.glyphImage = UIImage(systemName: pin.item.categoryGroup.symbol)
+            view.glyphImage = UIImage(systemName: pin.item.displaySymbol)
             return view
         }
 

@@ -237,8 +237,8 @@ final class NearbySearch: ObservableObject {
             item.distance = item.position.distance(to: center)
             guard item.distance <= radius else { continue }
             if let category = store.categoryOverrides[item.id] { item.category = category }
-            if let exact = store.places.first(where: { $0.source == item.source && $0.sourceKey == item.sourceKey }) {
-                // Already included via personal database.
+            if let exact = store.canonicalPlace(for: item) {
+                // Explicitly merged aliases render as a single saved venue in every search.
                 if !output.contains(where: { $0.savedID == exact.id }) {
                     output.append(store.savedCandidate(for: exact, near: center))
                 }

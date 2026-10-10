@@ -53,7 +53,12 @@ struct SettingsView: View {
                         live.start(near: location.coordinate)
                     }
                 }
+                Button("Prueba visual del panel (sin GPS ni visitas)") { live.startVisualTest() }
+                Button("Ver diagnóstico de iOS y extensión") { live.inspect() }
                 if !live.status.isEmpty { Text(live.status).font(.caption) }
+                if !live.diagnosticText.isEmpty {
+                    Text(live.diagnosticText).font(.caption.monospaced()).textSelection(.enabled)
+                }
                 Text("El panel muestra hasta tres candidatos recientes. Tocar un lugar abre su ficha para confirmar; no registra visitas por accidente. No consulta GPS por su cuenta y puede dejar de actualizarse si iOS no despierta la app. iOS limita su duración.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
@@ -70,7 +75,7 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Acerca de") {
-                LabeledContent("Versión", value: "0.11 · Prueba")
+                LabeledContent("Versión", value: "0.12 · Prueba")
                 LabeledContent("Coste", value: "0 €")
                 Text("La detección de visitas de iOS no es inmediata ni garantiza reconocer dos negocios contiguos. Puedes corregir cualquier estancia en Historial.")
                     .font(.footnote).foregroundStyle(.secondary)

@@ -1,4 +1,4 @@
-# AquíEstuve v0.11 — Probables, mapa y panel de bloqueo
+# AquíEstuve v0.12 — Probables, mapa y panel de bloqueo
 
 Aplicación nativa SwiftUI + MapKit + Core Location. Código fuente abierto; **los datos de ubicación permanecen en el iPhone** y no se incluyen en el repositorio.
 
@@ -18,7 +18,7 @@ Las Actividades en directo **no pueden hacer búsquedas GPS ni consultar mapas d
 ## Instalación desde Windows
 
 1. **Copia de seguridad antes de actualizar:** AquíEstuve → Ajustes → Copia completa JSON.
-2. Descomprime `AquiEstuve-Windows-Actualizacion-v0.11.zip`.
+2. Descomprime `AquiEstuve-Windows-Actualizacion-v0.12.zip`.
 3. Ejecuta `Actualizar-AquiEstuve.cmd` con Windows. Requiere Git, GitHub CLI y una sesión ya autorizada; NO los reinstala.
 4. Si GitHub completa la única compilación, `Salida/AquiEstuve-unsigned.ipa` estará listo para Sideloadly.
 5. Conecta tu iPhone, usa la **misma cuenta de Apple y el mismo bundle ID** que en la instalación previa y pulsa Start. No elimines la app anterior: así debería conservar sus datos.
@@ -36,3 +36,27 @@ El generador `python tools/generate_project.py --no-live` genera un proyecto **s
 - `plutil -lint AquiEstuve.xcodeproj/project.pbxproj` valida la estructura OpenStep.
 - Estas comprobaciones **no sustituyen compilar con Xcode ni probar la extensión y su firma en el iPhone**.
 - GitHub Actions solo se lanza manualmente y los artefactos se conservan un día.
+
+
+## 0.12 — Fusión de duplicados y diagnóstico del panel
+
+- **Duplicados confirmados por ti:** abre un sitio de la lista cercana y pulsa
+  «Es el mismo lugar que otro…»; o entra en «Mis lugares» y elige «Fusionar».
+  Se conserva el nombre del primer sitio y se reasignan las visitas del segundo.
+  Ambos identificadores se guardan como equivalentes, incluso tras reiniciar la app.
+  No se fusionan sitios automáticamente por compartir nombre o proximidad.
+- **Posibles repetidos:** en la pantalla principal se proponen algunas parejas de
+  nombre, tipo y distancia compatibles. Estas son sugerencias, NO fusiones.
+- **Bancos:** icono de edificio bancario en lugar de llave inglesa.
+- **Actividad en directo:** interfaz simplificada en Lock Screen / Dynamic Island
+  y prueba visual explícita sin candidatos, GPS ni visitas.
+  En Ajustes → Pantalla de bloqueo pulsa «Prueba visual del panel» y después
+  «Ver diagnóstico de iOS y extensión». Que una actividad esté activa **no
+  garantiza** que WidgetKit la esté dibujando. Si incluso la prueba visual
+  no aparece, captura el diagnóstico y revisaremos el firmado/extensión.
+- **Privacidad:** el registro permanece local. No se transmite un historial de
+  ubicaciones a GitHub, ni se usan APIs de pago ni seguimiento GPS continuo.
+
+La extensión de Live Activity y la app principal requieren validación real en Xcode
+antes de que esta versión se considere lista para el teléfono. El instalador no
+puede firmar la IPA por ti y no se debe desinstalar la aplicación existente.

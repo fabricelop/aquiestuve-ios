@@ -112,6 +112,44 @@ class Checks(unittest.TestCase):
         self.assertIn('"Confirmar que estoy aquí"', now)
         self.assertNotIn('store.assign(item)', (root / 'LiveWidget/LivePlacesWidget.swift').read_text(encoding='utf-8'))
 
+    def test_aliases_migrate_from_old_histories(self):
+        model = (root / 'Source/Models.swift').read_text(encoding='utf-8')
+        store = (root / 'Source/VisitStore.swift').read_text(encoding='utf-8')
+        self.assertIn('placeAliases: [String: UUID] = [:]', model)
+        self.assertIn('decodeIfPresent([String: UUID].self, forKey: .placeAliases) ?? [:]', model)
+        self.assertIn('placeAliases: placeAliases', store)
+        self.assertIn('func canonicalPlace(for candidate:', store)
+        self.assertIn('func mergeCandidates(primary:', store)
+        self.assertIn('consolidateExactOverlaps', store)
+
+    def test_manual_confirmation_is_required_for_merging(self):
+        view = (root / 'Source/DuplicateMergeView.swift').read_text(encoding='utf-8')
+        now = (root / 'Source/NowView.swift').read_text(encoding='utf-8')
+        places = (root / 'Source/SavedPlacesView.swift').read_text(encoding='utf-8')
+        self.assertIn('confirmationDialog("¿Son exactamente el mismo establecimiento?"', view)
+        self.assertIn('store.mergeCandidates(primary:', view)
+        self.assertIn('DuplicateSuggester.suggest(', now)
+        self.assertIn('Es el mismo lugar que otro…', now)
+        self.assertIn('Fusionar con otro lugar guardado', places)
+        self.assertNotIn('store.assign(', view)
+
+    def test_live_visual_diagnostic_is_data_free(self):
+        widget = (root / 'LiveWidget/LivePlacesWidget.swift').read_text(encoding='utf-8')
+        manager = (root / 'Source/LivePlacesManager.swift').read_text(encoding='utf-8')
+        settings = (root / 'Source/SettingsView.swift').read_text(encoding='utf-8')
+        self.assertIn('if context.state.diagnostic {', widget)
+        self.assertIn('func startVisualTest()', manager)
+        self.assertIn('options = diagnostic ? []', manager)
+        self.assertIn('Ver diagnóstico de iOS y extensión', settings)
+        self.assertIn('Prueba visual del panel', settings)
+        self.assertNotIn('VisitStore.shared.assign(', widget)
+
+    def test_no_map_network_spam(self):
+        nearby = (root / 'Source/NearbySearch.swift').read_text(encoding='utf-8')
+        self.assertIn('timeIntervalSince(previous) > 600', nearby)
+        self.assertIn('timeIntervalSince(previousExpansion) >= 60', nearby)
+        self.assertIn('if let exact = store.canonicalPlace(for: item)', nearby)
+
     def test_mapkit_annotation_cannot_regress(self):
         source = (root / 'Source/CreatePlaceView.swift').read_text(encoding='utf-8')
         self.assertIn('as? MKPointAnnotation', source)

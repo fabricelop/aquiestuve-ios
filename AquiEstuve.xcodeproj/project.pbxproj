@@ -8,6 +8,7 @@
         B58C9C98A49DFCA7EA998EEE /* AquiEstuveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E031C78D3CB1DD3AFFF3ED8 /* AquiEstuveApp.swift */; };
         8D7F85846E4BBE2577CD6CA5 /* ClusteredPlacesMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01047FE3D2AC83831878338 /* ClusteredPlacesMap.swift */; };
         58D29F18719C6AD38FB9EC2F /* CreatePlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4746844C148A5857DE8E0365 /* CreatePlaceView.swift */; };
+        49372981D09274C1F1C8257E /* DuplicateMergeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A835BDDA6A6A6B106DFE43 /* DuplicateMergeView.swift */; };
         D7A94A3AFBABAB7F3BC0370D /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B9C674C5861A81A51A11BC /* HistoryView.swift */; };
         3FDEB24AC3602E4365C10392 /* LivePlaceAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBF845530B254DB3B70CD0DB /* LivePlaceAttributes.swift */; };
         B7D179D10617E94BADD991FC /* LivePlacesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5038DD2E7DAE65AA55CC8E /* LivePlacesManager.swift */; };
@@ -30,6 +31,7 @@
         7E031C78D3CB1DD3AFFF3ED8 /* AquiEstuveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AquiEstuveApp.swift; sourceTree = "<group>"; };
         F01047FE3D2AC83831878338 /* ClusteredPlacesMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClusteredPlacesMap.swift; sourceTree = "<group>"; };
         4746844C148A5857DE8E0365 /* CreatePlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePlaceView.swift; sourceTree = "<group>"; };
+        60A835BDDA6A6A6B106DFE43 /* DuplicateMergeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateMergeView.swift; sourceTree = "<group>"; };
         56B9C674C5861A81A51A11BC /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
         CBF845530B254DB3B70CD0DB /* LivePlaceAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePlaceAttributes.swift; sourceTree = "<group>"; };
         3D5038DD2E7DAE65AA55CC8E /* LivePlacesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePlacesManager.swift; sourceTree = "<group>"; };
@@ -55,6 +57,7 @@
                 7E031C78D3CB1DD3AFFF3ED8 /* AquiEstuveApp.swift */,
                 F01047FE3D2AC83831878338 /* ClusteredPlacesMap.swift */,
                 4746844C148A5857DE8E0365 /* CreatePlaceView.swift */,
+                60A835BDDA6A6A6B106DFE43 /* DuplicateMergeView.swift */,
                 56B9C674C5861A81A51A11BC /* HistoryView.swift */,
                 CBF845530B254DB3B70CD0DB /* LivePlaceAttributes.swift */,
                 3D5038DD2E7DAE65AA55CC8E /* LivePlacesManager.swift */,
@@ -97,6 +100,7 @@
                 B58C9C98A49DFCA7EA998EEE /* AquiEstuveApp.swift in Sources */,
                 8D7F85846E4BBE2577CD6CA5 /* ClusteredPlacesMap.swift in Sources */,
                 58D29F18719C6AD38FB9EC2F /* CreatePlaceView.swift in Sources */,
+                49372981D09274C1F1C8257E /* DuplicateMergeView.swift in Sources */,
                 D7A94A3AFBABAB7F3BC0370D /* HistoryView.swift in Sources */,
                 3FDEB24AC3602E4365C10392 /* LivePlaceAttributes.swift in Sources */,
                 B7D179D10617E94BADD991FC /* LivePlacesManager.swift in Sources */,
@@ -117,10 +121,10 @@
 /* Begin XCBuildConfiguration section */
         85BFE9DBDB6067434E8984B2 = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
         795B6993DF3A3A05BE30DE82 = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_COMPILATION_MODE = wholemodule; }; name = Release; };
-        B0EE7820550B2B3215C9BD95 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 11; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.11; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
-        9E75B224E0BEAA03C056E5A1 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 11; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.11; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
-        97DAC1B2BB203E4C576B6155 = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 11; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.11; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
-        8ACA1D1C72A501E2C18546C6 = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 11; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.11; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+        B0EE7820550B2B3215C9BD95 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 12; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.12; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
+        9E75B224E0BEAA03C056E5A1 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 12; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.12; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+        97DAC1B2BB203E4C576B6155 = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 12; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.12; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
+        8ACA1D1C72A501E2C18546C6 = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 12; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.12; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
 /* End XCBuildConfiguration section */
 /* Begin XCConfigurationList section */
         071386AB84951F69D0FD63AE = {isa = XCConfigurationList; buildConfigurations = (85BFE9DBDB6067434E8984B2, 795B6993DF3A3A05BE30DE82,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };

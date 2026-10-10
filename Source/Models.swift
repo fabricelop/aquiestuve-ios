@@ -64,16 +64,22 @@ struct StoredData: Codable {
     var stays: [Stay] = []
     // Old installs do not contain this dictionary. Decode it explicitly for migration.
     var categoryOverrides: [String: String] = [:]
-    init(places: [Place] = [], stays: [Stay] = [], categoryOverrides: [String: String] = [:]) {
-        self.places = places; self.stays = stays; self.categoryOverrides = categoryOverrides
+    /// User-confirmed venue identity aliases, keyed by provider ID (Apple/OSM/private).
+    /// Not inferred automatically from name or location.
+    var placeAliases: [String: UUID] = [:]
+    init(places: [Place] = [], stays: [Stay] = [], categoryOverrides: [String: String] = [:],
+         placeAliases: [String: UUID] = [:]) {
+        self.places = places; self.stays = stays
+        self.categoryOverrides = categoryOverrides; self.placeAliases = placeAliases
     }
-    private enum CodingKeys: String, CodingKey { case schemaVersion, places, stays, categoryOverrides }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, places, stays, categoryOverrides, placeAliases }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         places = try values.decodeIfPresent([Place].self, forKey: .places) ?? []
         stays = try values.decodeIfPresent([Stay].self, forKey: .stays) ?? []
         categoryOverrides = try values.decodeIfPresent([String: String].self, forKey: .categoryOverrides) ?? [:]
+        placeAliases = try values.decodeIfPresent([String: UUID].self, forKey: .placeAliases) ?? [:]
     }
 }
 

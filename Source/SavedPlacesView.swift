@@ -6,6 +6,7 @@ struct SavedPlacesView: View {
     @State private var query = ""
     @State private var addPlace = false
     @State private var placeToDelete: Place?
+    @State private var placeToMerge: Place?
 
     private var filtered: [Place] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,6 +48,7 @@ struct SavedPlacesView: View {
                 ForEach(createdByMe) { place in
                     placeLink(place)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("Fusionar") { placeToMerge = place }.tint(.indigo)
                             Button("Borrar", role: .destructive) { placeToDelete = place }
                         }
                 }
@@ -59,6 +61,7 @@ struct SavedPlacesView: View {
                 ForEach(registeredVisits) { place in
                     placeLink(place)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("Fusionar") { placeToMerge = place }.tint(.indigo)
                             Button("Borrar", role: .destructive) { placeToDelete = place }
                         }
                 }
@@ -91,6 +94,12 @@ struct SavedPlacesView: View {
         .sheet(isPresented: $addPlace) {
             if let point = location.coordinate { CreatePlaceView(initial: point) }
         }
+        .sheet(item: $placeToMerge) { place in
+            DuplicateMergeView(primary: store.savedCandidate(for: place, near: place.position),
+                options: store.places.filter { $0.id != place.id }.map {
+                    store.savedCandidate(for: $0, near: place.position)
+                }) { placeToMerge = nil }
+        }
     }
 
     private func placeLink(_ place: Place) -> some View {
@@ -103,7 +112,7 @@ struct SavedPlacesView: View {
 
     private func placeRow(_ place: Place) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(place.name, systemImage: place.categoryGroup.symbol)
+            Label(place.name, systemImage: place.displaySymbol)
                 .font(.headline).foregroundStyle(place.categoryGroup.color)
             Text("\(place.categoryLabel) · \(store.visitCount(for: place)) visitas · \(store.totalTime(for: place).readableDuration)")
                 .font(.caption).foregroundStyle(.secondary)
@@ -122,6 +131,7 @@ struct PlaceDetailsView: View {
     @State private var name: String
     @State private var category: String
     @State private var confirmDelete = false
+    @State private var showMerge = false
     init(place: Place) {
         self.place = place
         _name = State(initialValue: place.name)
@@ -151,6 +161,7 @@ struct PlaceDetailsView: View {
                 }
             }
             Section {
+                Button("Fusionar con otro lugar guardado") { showMerge = true }
                 Button("Empezar una visita ahora") {
                     store.addManualVisit(for: place)
                     dismiss()
@@ -162,6 +173,12 @@ struct PlaceDetailsView: View {
         }
         .navigationTitle(place.name)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showMerge) {
+            DuplicateMergeView(primary: store.savedCandidate(for: place, near: place.position),
+                options: store.places.filter { $0.id != place.id }.map {
+                    store.savedCandidate(for: $0, near: place.position)
+                }) { dismiss() }
+        }
         .confirmationDialog("Eliminar \(place.name) de Mis lugares", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Quitar lugar y conservar visitas sin identificar") {
                 store.deletePlace(place, deleteVisits: false)

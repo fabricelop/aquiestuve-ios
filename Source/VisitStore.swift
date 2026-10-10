@@ -8,6 +8,7 @@ final class VisitStore: ObservableObject {
     @Published private(set) var places: [Place] = []
     @Published private(set) var stays: [Stay] = []
     @Published private(set) var categoryOverrides: [String: String] = [:]
+    @Published private(set) var placeAliases: [String: UUID] = [:]
     @Published private(set) var lastError: String?
 
     private let storageURL: URL
@@ -21,12 +22,13 @@ final class VisitStore: ObservableObject {
             places = stored.places
             stays = stored.stays
             categoryOverrides = stored.categoryOverrides
+            placeAliases = stored.placeAliases.filter { key, id in stored.places.contains(where: { $0.id == id }) }
         }
     }
 
     private func persist() {
         do {
-            let data = try JSONEncoder().encode(StoredData(places: places, stays: stays, categoryOverrides: categoryOverrides))
+            let data = try JSONEncoder().encode(StoredData(places: places, stays: stays, categoryOverrides: categoryOverrides, placeAliases: placeAliases))
             try data.write(to: storageURL, options: .atomic)
             try (storageURL as NSURL).setResourceValue(FileProtectionType.completeUntilFirstUserAuthentication,
                                                        forKey: .fileProtectionKey)
@@ -72,6 +74,7 @@ final class VisitStore: ObservableObject {
             }
         }
         places.removeAll(where: { $0.id == place.id })
+        placeAliases = placeAliases.filter { $0.value != place.id }
         // Deleted places must not appear again as category preferences.
         categoryOverrides.removeValue(forKey: place.source.rawValue + ":" + place.sourceKey)
         persist()
@@ -82,18 +85,91 @@ final class VisitStore: ObservableObject {
         deletePlace(place, deleteVisits: false)
     }
 
-    func preferredCategory(for candidate: PlaceCandidate) -> String {
-        categoryOverrides[candidate.id] ?? candidate.category
+    func canonicalPlace(for candidate: PlaceCandidate) -> Place? {
+        if let id = placeAliases[candidate.id], let saved = places.first(where: { $0.id == id }) {
+            return saved
+        }
+        if let id = candidate.savedID, let saved = places.first(where: { $0.id == id }) {
+            return saved
+        }
+        return places.first { $0.source == candidate.source && $0.sourceKey == candidate.sourceKey }
     }
+
+    func preferredCategory(for candidate: PlaceCandidate) -> String {
+        if let saved = canonicalPlace(for: candidate) {
+            return categoryOverrides[saved.source.rawValue + ":" + saved.sourceKey] ?? saved.category
+        }
+        return categoryOverrides[candidate.id] ?? candidate.category
+    }
+
+    /// Merge ONLY after explicit user confirmation. All previous visits are reassigned to
+    /// one stable venue ID; both external IDs are remembered and never shown separately.
+    @discardableResult
+    func mergeCandidates(primary: PlaceCandidate, duplicate: PlaceCandidate) -> Bool {
+        guard primary.id != duplicate.id else { return false }
+        let primaryPlace: Place
+        if let existing = canonicalPlace(for: primary) {
+            primaryPlace = existing
+        } else {
+            primaryPlace = Place(source: primary.source, sourceKey: primary.sourceKey,
+                name: primary.name, category: preferredCategory(for: primary), position: primary.position)
+            places.append(primaryPlace)
+        }
+        if let old = canonicalPlace(for: duplicate), old.id != primaryPlace.id {
+            for i in stays.indices where stays[i].placeID == old.id {
+                stays[i].placeID = primaryPlace.id
+            }
+            places.removeAll { $0.id == old.id }
+            // Keep aliases that point at the merged-away record, now mapped to the survivor.
+            for key in Array(placeAliases.keys) where placeAliases[key] == old.id {
+                placeAliases[key] = primaryPlace.id
+            }
+            categoryOverrides.removeValue(forKey: old.source.rawValue + ":" + old.sourceKey)
+        }
+        placeAliases[primary.id] = primaryPlace.id
+        placeAliases[duplicate.id] = primaryPlace.id
+        placeAliases[primaryPlace.source.rawValue + ":" + primaryPlace.sourceKey] = primaryPlace.id
+        consolidateExactOverlaps(for: primaryPlace.id)
+        persist()
+        return true
+    }
+
+    /// Only consolidate genuinely overlapping visit intervals after a manual venue merge.
+    /// Do not coalesce consecutive visits merely because they share a location.
+    private func consolidateExactOverlaps(for placeID: UUID) {
+        let ids = stays.enumerated().filter { $0.element.placeID == placeID }
+            .sorted { $0.element.arrival < $1.element.arrival }.map(\.offset)
+        var kept: [Int] = []
+        var removed = Set<UUID>()
+        for index in ids {
+            let visit = stays[index]
+            if let last = kept.last {
+                let other = stays[last]
+                let firstEnd = other.departure ?? .distantFuture
+                let secondEnd = visit.departure ?? .distantFuture
+                // Only overlapping records, not a second separate check-in later.
+                if visit.arrival < firstEnd && other.arrival < secondEnd {
+                    stays[last].arrival = min(other.arrival, visit.arrival)
+                    stays[last].departure = firstEnd == .distantFuture || secondEnd == .distantFuture
+                        ? nil : max(firstEnd, secondEnd)
+                    if visit.status == .confirmed { stays[last].status = .confirmed }
+                    removed.insert(visit.id)
+                    continue
+                }
+            }
+            kept.append(index)
+        }
+        stays.removeAll { removed.contains($0.id) }
+    }
+
 
     func updateCategory(for candidate: PlaceCandidate, to category: String) {
         let clean = category.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
         categoryOverrides[candidate.id] = clean
-        if let index = places.firstIndex(where: {
-            $0.source == candidate.source && $0.sourceKey == candidate.sourceKey
-        }) {
+        if let match = canonicalPlace(for: candidate), let index = places.firstIndex(where: { $0.id == match.id }) {
             places[index].category = clean
+            categoryOverrides[match.source.rawValue + ":" + match.sourceKey] = clean
         }
         persist()
     }
@@ -108,8 +184,7 @@ final class VisitStore: ObservableObject {
 
     func assign(_ candidate: PlaceCandidate, to visitID: UUID? = nil) {
         let place: Place
-        if let existing = places.first(where: { $0.id == candidate.savedID }) ??
-            places.first(where: { $0.source == candidate.source && $0.sourceKey == candidate.sourceKey }) {
+        if let existing = canonicalPlace(for: candidate) {
             place = existing
         } else {
             place = Place(source: candidate.source, sourceKey: candidate.sourceKey,
@@ -228,7 +303,7 @@ final class VisitStore: ObservableObject {
 
     func exportJSON() -> URL? {
         let path = FileManager.default.temporaryDirectory.appendingPathComponent("AquiEstuve-historial.json")
-        guard let data = try? JSONEncoder().encode(StoredData(places: places, stays: stays, categoryOverrides: categoryOverrides)),
+        guard let data = try? JSONEncoder().encode(StoredData(places: places, stays: stays, categoryOverrides: categoryOverrides, placeAliases: placeAliases)),
               (try? data.write(to: path, options: .atomic)) != nil else { return nil }
         return path
     }

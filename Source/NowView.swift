@@ -14,6 +14,7 @@ struct NowView: View {
     @AppStorage("ae_venue_mode") private var venueMode = "probables"
     @State private var venueFilter: VenueKind = .all
     @State private var clusterItems: [PlaceCandidate] = []
+    @State private var duplicateSuggestion: DuplicateSuggestion?
     @State private var compactZoomStep = 0
     @State private var compactRecenterStep = 0
     @State private var selectedGroup: PlaceGroup = .all
@@ -27,21 +28,27 @@ struct NowView: View {
     private var matchingPlaces: [PlaceCandidate] {
         let normalized = placeQuery.trimmingCharacters(in: .whitespacesAndNewlines)
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        var pool = search.candidates.map { original in
+        let center = location.coordinate
+        func resolved(_ original: PlaceCandidate) -> PlaceCandidate {
+            if let canonical = store.canonicalPlace(for: original) {
+                return store.savedCandidate(for: canonical, near: center ?? original.position)
+            }
             var item = original
             item.category = store.preferredCategory(for: original)
             return item
         }
+        var pool = search.candidates.map(resolved)
         if remoteMode == "name:" + normalized ||
            (remoteMode == "group:" + selectedGroup.rawValue && selectedGroup != .all) {
             var seen = Set(pool.map(\.id))
-            for original in search.nameResults where seen.insert(original.id).inserted {
-                var item = original
-                item.category = store.preferredCategory(for: original)
-                pool.append(item)
+            for original in search.nameResults {
+                let item = resolved(original)
+                if seen.insert(item.id).inserted { pool.append(item) }
             }
         }
-        let remoteIDs = Set(search.nameResults.map(\.id))
+        var unique = Set<String>()
+        pool = pool.filter { unique.insert($0.id).inserted }
+        let remoteIDs = Set(search.nameResults.map { resolved($0).id })
         return pool.filter { item in
             (selectedGroup == .all || item.categoryGroup == selectedGroup) &&
             (normalized.isEmpty || [item.name, item.categoryLabel, item.address ?? ""]
@@ -57,6 +64,14 @@ struct NowView: View {
                 if lhs.relevanceScore != rhs.relevanceScore { return lhs.relevanceScore > rhs.relevanceScore }
             }
             return lhs.distance < rhs.distance
+        }
+    }
+
+    private var likelyDuplicates: [DuplicateSuggestion] {
+        DuplicateSuggester.suggest(search.candidates).filter { pair in
+            let p = store.canonicalPlace(for: pair.primary)?.id
+            let q = store.canonicalPlace(for: pair.other)?.id
+            return p == nil || q == nil || p != q
         }
     }
 
@@ -181,6 +196,25 @@ struct NowView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 15))
                         .accessibilityLabel("Mapa con agrupación de establecimientos y zoom")
                     }
+                    if !likelyDuplicates.isEmpty {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text("Posibles lugares repetidos")
+                                .font(.subheadline.bold())
+                            ForEach(likelyDuplicates.prefix(3)) { pair in
+                                Button {
+                                    duplicateSuggestion = pair
+                                } label: {
+                                    Label("\(pair.primary.name) = \(pair.other.name)? · Revisar", systemImage: "square.on.square")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                            Text("Nunca se fusionan automáticamente.")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .padding(10)
+                        .background(Color.indigo.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                    }
                     HStack {
                         Text("Lugares cercanos").font(.title3.bold())
                         Spacer()
@@ -291,7 +325,7 @@ struct NowView: View {
                             previewPlace = item
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: item.categoryGroup.symbol)
+                                Image(systemName: item.displaySymbol)
                                     .font(.title2).foregroundStyle(item.categoryGroup.color)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(item.name).fontWeight(.semibold).foregroundStyle(.primary)
@@ -349,8 +383,15 @@ struct NowView: View {
         .sheet(isPresented: $createPlace) {
             if let point = location.coordinate { CreatePlaceView(initial: point) }
         }
+        .sheet(item: $duplicateSuggestion) { pair in
+            DuplicateMergeView(primary: pair.primary, options: [pair.other]) {
+                duplicateSuggestion = nil
+            }
+        }
         .sheet(item: $previewPlace) { item in
-            NearbyPlacePreview(item: item) {
+            NearbyPlacePreview(item: item, alternatives:
+                search.candidates + search.nameResults + search.exploreResults +
+                store.places.map { store.savedCandidate(for: $0, near: item.position) }) {
                 store.assign(item)
                 previewPlace = nil
             }
@@ -380,6 +421,7 @@ struct NowView: View {
 
 private struct FullPlaceMap: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: VisitStore
     @ObservedObject var search: NearbySearch
     let center: GeoPoint
     let radius: Double
@@ -406,9 +448,14 @@ private struct FullPlaceMap: View {
         let combined = search.candidates + search.exploreResults.filter { extra in
             !search.candidates.contains(where: { $0.id == extra.id })
         }
-        return combined.filter { item in
-            (selectedKind == .all || item.venueKind == selectedKind) &&
-            (showEverywhere || item.isProbable)
+        var seen = Set<String>()
+        return combined.compactMap { raw -> PlaceCandidate? in
+            let item = store.canonicalPlace(for: raw).map {
+                store.savedCandidate(for: $0, near: center)
+            } ?? raw
+            guard seen.insert(item.id).inserted else { return nil }
+            return (selectedKind == .all || item.venueKind == selectedKind) &&
+                (showEverywhere || item.isProbable) ? item : nil
         }
     }
 
@@ -478,7 +525,7 @@ private struct GroupedPlacesList: View {
                     onSelect(item)
                 } label: {
                     HStack {
-                        Image(systemName: item.categoryGroup.symbol)
+                        Image(systemName: item.displaySymbol)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.name).fontWeight(.medium)
                             Text("\(item.categoryLabel) · \(item.distance.readableDistance)")
@@ -499,12 +546,14 @@ private struct NearbyPlacePreview: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: VisitStore
     let item: PlaceCandidate
+    let alternatives: [PlaceCandidate]
     let confirm: () -> Void
+    @State private var showDuplicateMerge = false
     @State private var category: String
     @State private var customCategory = ""
 
-    init(item: PlaceCandidate, confirm: @escaping () -> Void) {
-        self.item = item; self.confirm = confirm
+    init(item: PlaceCandidate, alternatives: [PlaceCandidate], confirm: @escaping () -> Void) {
+        self.item = item; self.alternatives = alternatives; self.confirm = confirm
         _category = State(initialValue: item.categoryLabel)
     }
 
@@ -548,7 +597,9 @@ private struct NearbyPlacePreview: View {
                     }
                     .padding(12)
                     .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                    Text("Solo el botón inferior confirma tu presencia. Consultar este sitio o corregir su categoría no registra ninguna visita.")
+                    Button("Es el mismo lugar que otro…") { showDuplicateMerge = true }
+                        .buttonStyle(.bordered)
+                    Text("Solo el botón inferior confirma tu presencia. Consultar este sitio, unir duplicados o corregir su categoría no registra ninguna visita.")
                         .font(.caption).foregroundStyle(.secondary)
                     Button("Confirmar que estoy aquí") { confirm() }
                         .buttonStyle(.borderedProminent)
@@ -558,6 +609,9 @@ private struct NearbyPlacePreview: View {
             }
             .navigationTitle("Ficha del lugar")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showDuplicateMerge) {
+                DuplicateMergeView(primary: item, options: alternatives) { dismiss() }
+            }
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
         }
     }
