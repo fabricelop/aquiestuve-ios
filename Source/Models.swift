@@ -47,7 +47,7 @@ struct PlaceCandidate: Identifiable, Hashable, Codable {
     let source: PlaceSource
     let sourceKey: String
     let name: String
-    let category: String
+    var category: String
     let position: GeoPoint
     var distance: Double = 0
     var visits: Int = 0
@@ -62,6 +62,19 @@ struct StoredData: Codable {
     var schemaVersion: Int = 1
     var places: [Place] = []
     var stays: [Stay] = []
+    // Old installs do not contain this dictionary. Decode it explicitly for migration.
+    var categoryOverrides: [String: String] = [:]
+    init(places: [Place] = [], stays: [Stay] = [], categoryOverrides: [String: String] = [:]) {
+        self.places = places; self.stays = stays; self.categoryOverrides = categoryOverrides
+    }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, places, stays, categoryOverrides }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        places = try values.decodeIfPresent([Place].self, forKey: .places) ?? []
+        stays = try values.decodeIfPresent([Stay].self, forKey: .stays) ?? []
+        categoryOverrides = try values.decodeIfPresent([String: String].self, forKey: .categoryOverrides) ?? [:]
+    }
 }
 
 extension Double {

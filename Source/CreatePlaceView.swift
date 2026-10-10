@@ -10,9 +10,10 @@ struct CreatePlaceView: View {
     @State private var category = "Personal"
     @State private var assignToCurrent = true
 
-    init(initial: GeoPoint) {
+    init(initial: GeoPoint, assignToCurrentByDefault: Bool = true) {
         self.initial = initial
         _point = State(initialValue: initial)
+        _assignToCurrent = State(initialValue: assignToCurrentByDefault)
     }
     var body: some View {
         NavigationStack {
@@ -76,8 +77,7 @@ private struct DraggablePlaceMap: UIViewRepresentable {
         return map
     }
     func updateUIView(_ map: MKMapView, context: Context) {
-        context.coordinator.parent = self
-        if let marker = map.annotations.first(where: { $0 is MKPointAnnotation }) as? MKPointAnnotation {
+        if let marker = map.annotations.first(where: { $0 is MKPointAnnotation }) {
             marker.coordinate = point.coordinate
         }
     }

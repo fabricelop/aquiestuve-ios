@@ -5,41 +5,96 @@ struct NowView: View {
     @EnvironmentObject private var store: VisitStore
     @EnvironmentObject private var location: LocationService
     @StateObject private var search = NearbySearch()
+    @AppStorage("ae_show_map") private var showMap = true
     @State private var radius = 250.0
+    @State private var mapPosition: MapCameraPosition = .automatic
+    @State private var fullMap = false
     @State private var showAll = false
     @State private var selectedGroup: PlaceGroup = .all
     @State private var createPlace = false
     @State private var placeQuery = ""
+    @State private var searchRadius = 3000.0
+    @State private var remoteMode = ""
     @State private var previewPlace: PlaceCandidate?
     @FocusState private var isSearching: Bool
 
     private var matchingPlaces: [PlaceCandidate] {
         let normalized = placeQuery.trimmingCharacters(in: .whitespacesAndNewlines)
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        return search.candidates.filter { candidate in
-            (selectedGroup == .all || candidate.categoryGroup == selectedGroup) &&
-            (normalized.isEmpty || [candidate.name, candidate.categoryLabel, candidate.address ?? ""]
+        var pool = search.candidates.map { original in
+            var item = original
+            item.category = store.preferredCategory(for: original)
+            return item
+        }
+        if remoteMode == "name:" + normalized ||
+           (remoteMode == "group:" + selectedGroup.rawValue && selectedGroup != .all) {
+            var seen = Set(pool.map(\.id))
+            for original in search.nameResults where seen.insert(original.id).inserted {
+                var item = original
+                item.category = store.preferredCategory(for: original)
+                pool.append(item)
+            }
+        }
+        let remoteIDs = Set(search.nameResults.map(\.id))
+        return pool.filter { item in
+            (selectedGroup == .all || item.categoryGroup == selectedGroup) &&
+            (normalized.isEmpty || [item.name, item.categoryLabel, item.address ?? ""]
                 .contains { $0.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                    .contains(normalized) })
+                    .contains(normalized) } ||
+             (remoteMode == "name:" + normalized && remoteIDs.contains(item.id)))
+        }.sorted { lhs, rhs in
+            if lhs.visits > 0 && rhs.visits == 0 && normalized.isEmpty { return true }
+            if rhs.visits > 0 && lhs.visits == 0 && normalized.isEmpty { return false }
+            return lhs.distance < rhs.distance
         }
     }
-    // Filtering always scans the complete results, not just the seven suggested rows.
+
     private var displayed: [PlaceCandidate] {
-        let filtering = selectedGroup != .all || !placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return showAll || filtering ? matchingPlaces : Array(matchingPlaces.prefix(7))
+        let filterActive = selectedGroup != .all || !placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return showAll || filterActive ? matchingPlaces : Array(matchingPlaces.prefix(7))
     }
 
     private var availableGroups: [PlaceGroup] {
-        [.all] + PlaceGroup.allCases.filter { group in
-            group != .all && search.candidates.contains(where: { $0.categoryGroup == group })
+        PlaceGroup.allCases
+    }
+
+    private func mapRegion(_ center: GeoPoint, radius: Double) -> MKCoordinateRegion {
+        let latMeters = max(300, radius * 2.3)
+        return MKCoordinateRegion(center: center.coordinate,
+                                  latitudinalMeters: latMeters,
+                                  longitudinalMeters: latMeters)
+    }
+
+    private func namedSearch(near center: GeoPoint) {
+        let key = placeQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard key.count >= 2 else { return }
+        remoteMode = "name:" + key.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        isSearching = false
+        Task { await search.searchByName(key, near: center, radius: searchRadius) }
+    }
+
+    private func categorySearch(near center: GeoPoint) {
+        guard selectedGroup != .all else { return }
+        placeQuery = ""
+        remoteMode = "group:" + selectedGroup.rawValue
+        let term: String
+        switch selectedGroup {
+        case .food: term = "restaurantes"
+        case .cafes: term = "cafeterías y bares"
+        case .shopping: term = "tiendas"
+        case .health: term = "farmacias y centros de salud"
+        case .sports: term = "centros deportivos"
+        case .outdoors: term = "parques"
+        default: term = selectedGroup.title
         }
+        Task { await search.searchByName(term, near: center, radius: searchRadius) }
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 if let stay = store.activeStay {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Label(stay.status == .unresolved ? "Visita pendiente" : "Visita actual", systemImage: "location.fill")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                         Text(store.place(for: stay)?.name ?? "¿Dónde estás?")
@@ -48,199 +103,195 @@ struct NowView: View {
                             Text("Desde \(stay.arrival.formatted(date: .omitted, time: .shortened)) · \(stay.duration(asOf: context.date).readableDuration)")
                                 .font(.subheadline).foregroundStyle(.secondary)
                         }
-                        Text(stay.status == .automatic ? "Identificado automáticamente; puedes corregirlo" :
-                             stay.status == .confirmed ? "Confirmado" : "Elige un lugar de la lista")
+                        Text(stay.status == .unresolved ? "Puedes identificar esta parada en Historial" :
+                             stay.status == .automatic ? "Identificada automáticamente; revisable" : "Confirmada")
                             .font(.caption).foregroundStyle(stay.status == .unresolved ? .orange : .green)
-                        Button("Finalizar estancia") { store.endCurrent() }
-                            .buttonStyle(.bordered)
+                        Button("Finalizar estancia") { store.endCurrent() }.buttonStyle(.bordered)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+                    .padding(12)
+                    .background(Color.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
                 } else {
-                    Label("Sin estancia activa · selecciona un lugar o espera la detección automática",
+                    Label("Sin estancia activa · selecciona un sitio o espera una detección",
                           systemImage: "location.circle")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-
                 if location.authorization == .notDetermined {
-                    Button("Activar ubicación") { location.requestAccess() }
-                        .buttonStyle(.borderedProminent)
+                    Button("Activar ubicación") { location.requestAccess() }.buttonStyle(.borderedProminent)
                 } else if location.authorization == .denied || location.authorization == .restricted {
-                    Label("Activa el acceso a la ubicación en Ajustes del iPhone", systemImage: "exclamationmark.triangle")
+                    Label("Activa la ubicación en Ajustes de iOS", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
 
                 if let position = location.coordinate {
-                    if let accuracy = location.accuracy, accuracy > 100 {
-                        Label("Precisión aproximada: \(accuracy.readableDistance). Confirma el lugar manualmente.",
-                              systemImage: "location.slash.circle")
-                            .font(.caption).foregroundStyle(.orange)
-                    }
-                    Map(initialPosition: .region(MKCoordinateRegion(center: position.coordinate,
-                          span: MKCoordinateSpan(latitudeDelta: 0.007, longitudeDelta: 0.007)))) {
-                        UserAnnotation()
-                        ForEach(matchingPlaces) { item in
-                            Annotation(item.name, coordinate: item.position.coordinate) {
-                                Button {
-                                    isSearching = false
-                                    previewPlace = item
-                                } label: {
-                                    Image(systemName: item.categoryGroup.symbol)
-                                        .font(.title2)
-                                        .foregroundStyle(item.categoryGroup.color)
-                                        .padding(4)
-                                        .background(.regularMaterial, in: Circle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Ver ficha: \(item.name)")
-                            }
+                    HStack {
+                        Button {
+                            showMap.toggle()
+                        } label: {
+                            Label(showMap ? "Ocultar mapa" : "Mostrar mapa", systemImage: showMap ? "map.fill" : "map")
+                        }
+                        .buttonStyle(.bordered)
+                        Spacer()
+                        if showMap {
+                            Button {
+                                fullMap = true
+                            } label: { Label("Pantalla completa", systemImage: "arrow.up.left.and.arrow.down.right") }
+                                .buttonStyle(.bordered)
                         }
                     }
-                    .frame(height: 225)
-                    .clipShape(RoundedRectangle(cornerRadius: 15))
-                    .accessibilityLabel("Mapa de establecimientos cercanos")
-
+                    if showMap {
+                        Map(position: $mapPosition, interactionModes: .all) {
+                            UserAnnotation()
+                            ForEach(matchingPlaces) { item in
+                                Annotation(item.name, coordinate: item.position.coordinate) {
+                                    Button { isSearching = false; previewPlace = item } label: {
+                                        Image(systemName: item.categoryGroup.symbol)
+                                            .font(.title3)
+                                            .foregroundStyle(item.categoryGroup.color)
+                                            .padding(5)
+                                            .background(.regularMaterial, in: Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Ver lugar: \(item.name)")
+                                }
+                            }
+                        }
+                        .mapControls { MapCompass(); MapScaleView(); MapUserLocationButton() }
+                        .frame(height: 285)
+                        .clipShape(RoundedRectangle(cornerRadius: 15))
+                        .accessibilityLabel("Mapa interactivo. Pellizca para ampliar y desplázate para explorar.")
+                    }
                     HStack {
                         Text("Lugares cercanos").font(.title3.bold())
                         Spacer()
                         if search.loading { ProgressView() }
-                        Button { location.refreshPosition(); Task { await search.search(near: position, radius: radius, force: true) } } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }.accessibilityLabel("Actualizar lugares")
+                        Button {
+                            location.refreshPosition()
+                            Task { await search.search(near: position, radius: radius, force: true) }
+                        } label: { Image(systemName: "arrow.clockwise") }
+                            .accessibilityLabel("Actualizar sitios")
                     }
-                    Picker("Radio", selection: $radius) {
+                    Picker("Radio de proximidad", selection: $radius) {
                         Text("100 m").tag(100.0)
                         Text("250 m").tag(250.0)
                         Text("500 m").tag(500.0)
                         Text("1 km").tag(1000.0)
                     }
                     .pickerStyle(.segmented)
-                    .onChange(of: radius) { _, newValue in
-                        Task { await search.search(near: position, radius: newValue) }
+                    .onChange(of: radius) { _, value in
+                        mapPosition = .region(mapRegion(position, radius: value))
+                        Task { await search.search(near: position, radius: value) }
                     }
+                    Text("Radio actual: \(radius.readableDistance). \(search.candidates.count) sitios cargados." +
+                         (search.coverageLimited ? " Apple puede limitar los resultados; pulsa Buscar más por sectores." : ""))
+                        .font(.caption).foregroundStyle(.secondary)
+
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                        TextField("Buscar sitio, calle o categoría", text: $placeQuery)
+                        TextField("Nombre, calle o categoría", text: $placeQuery)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                            .submitLabel(.done)
+                            .submitLabel(.search)
                             .focused($isSearching)
-                            .onSubmit { isSearching = false }
-                            .accessibilityLabel("Filtrar lugares cercanos")
+                            .onSubmit { namedSearch(near: position) }
                         if !placeQuery.isEmpty {
-                            Button {
-                                placeQuery = ""
-                            } label: {
+                            Button { placeQuery = "" } label: {
                                 Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                             }
-                            .accessibilityLabel("Borrar búsqueda")
+                            .accessibilityLabel("Vaciar búsqueda")
                         }
                     }
-                    .padding(12)
+                    .padding(11)
                     .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
-
+                    HStack {
+                        Picker("Radio de búsqueda ampliada", selection: $searchRadius) {
+                            Text("1 km").tag(1000.0)
+                            Text("3 km").tag(3000.0)
+                            Text("5 km").tag(5000.0)
+                            Text("10 km").tag(10000.0)
+                        }
+                        .pickerStyle(.menu)
+                        Button("Buscar en zona") { namedSearch(near: position) }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).count < 2 || search.loading)
+                    }
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 7) {
                             ForEach(availableGroups) { group in
                                 Button {
                                     selectedGroup = group
+                                    remoteMode = ""
                                 } label: {
                                     Label(group.title, systemImage: group.symbol)
                                         .font(.caption.weight(.semibold))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 8)
-                                        .background(selectedGroup == group ? group.color.opacity(0.2) : Color.secondary.opacity(0.1),
-                                                    in: Capsule())
-                                        .overlay(Capsule().strokeBorder(selectedGroup == group ? group.color : .clear,
-                                                                        lineWidth: 1.4))
+                                        .padding(.horizontal, 9).padding(.vertical, 7)
+                                        .background(selectedGroup == group ? group.color.opacity(0.2) : Color.secondary.opacity(0.1), in: Capsule())
+                                        .overlay(Capsule().strokeBorder(selectedGroup == group ? group.color : .clear, lineWidth: 1))
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityAddTraits(selectedGroup == group ? .isSelected : [])
                             }
                         }
                     }
-                    .accessibilityLabel("Filtrar lugares por categoría")
+                    if selectedGroup != .all {
+                        Button("Buscar más de \(selectedGroup.title.lowercased()) en \(searchRadius.readableDistance)") {
+                            categorySearch(near: position)
+                        }
+                        .font(.subheadline)
+                        .disabled(search.loading)
+                    }
                     HStack {
-                        Text(placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedGroup == .all
-                             ? "\(search.candidates.count) encontrados · Apple: \(search.appleCount) · OSM: \(search.osmCount)"
-                             : "\(matchingPlaces.count) coincidencias de \(search.candidates.count) lugares")
+                        Text("\(matchingPlaces.count) coincidencias · Apple: \(search.appleCount) · OSM: \(search.osmCount)")
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
-                        if placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedGroup == .all {
+                        if selectedGroup == .all && placeQuery.isEmpty {
                             Button(showAll ? "Sugeridos" : "Ver todos") { showAll.toggle() }
-                                .font(.subheadline.weight(.semibold))
+                                .font(.caption.bold())
                         }
                     }
                     ForEach(displayed) { item in
-                        HStack(spacing: 10) {
-                            Button {
-                                isSearching = false
-                                previewPlace = item
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: item.categoryGroup.symbol)
-                                        .font(.title2).foregroundStyle(item.categoryGroup.color)
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(item.name).fontWeight(.semibold).foregroundStyle(.primary)
-                                        Text("\(item.categoryLabel) · \(item.distance.readableDistance)" +
-                                             (item.visits > 0 ? " · \(item.visits) visitas" : ""))
-                                            .font(.caption).foregroundStyle(.secondary)
-                                        if let address = item.address, !address.isEmpty {
-                                            Text(address).font(.caption2).foregroundStyle(.secondary)
-                                                .lineLimit(2)
-                                        }
-                                    }
-                                    Spacer(minLength: 0)
-                                    if store.activeStay?.placeID == item.savedID && item.savedID != nil {
-                                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                                    } else {
-                                        Image(systemName: "checkmark.circle").foregroundStyle(.secondary)
+                        Button {
+                            isSearching = false
+                            previewPlace = item
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: item.categoryGroup.symbol)
+                                    .font(.title2).foregroundStyle(item.categoryGroup.color)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.name).fontWeight(.semibold).foregroundStyle(.primary)
+                                    Text("\(item.categoryLabel) · \(item.distance.readableDistance)" +
+                                         (item.visits > 0 ? " · \(item.visits) visitas" : ""))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                    if let address = item.address, !address.isEmpty {
+                                        Text(address).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                                     }
                                 }
-                                .padding(.vertical, 6)
-                                .contentShape(Rectangle())
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Ver lugar y confirmar: \(item.name)")
-                            Button {
-                                isSearching = false
-                                previewPlace = item
-                            } label: {
-                                Image(systemName: "map")
-                                    .font(.title3)
-                                    .frame(width: 34, height: 44)
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("Ver en mapa: \(item.name)")
+                            .padding(.vertical, 7)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                         Divider()
                     }
-                    if matchingPlaces.isEmpty && (!placeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedGroup != .all) {
-                        Text("No hay coincidencias en los lugares cargados. Amplía el radio, usa OSM o crea uno nuevo.")
-                            .font(.subheadline).foregroundStyle(.secondary)
+                    if matchingPlaces.isEmpty && !search.loading {
+                        Text("Sin coincidencias cargadas. Prueba una búsqueda ampliada, OSM o crea el lugar.")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
-                    if search.candidates.isEmpty && !search.loading {
-                        Text("No hay resultados todavía. Prueba a actualizar, ampliar el radio o crear un lugar.")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Button { Task { await search.expandNearby(near: position, radius: radius) } } label: {
+                            Label("Más por sectores", systemImage: "square.grid.2x2")
+                        }
+                        .buttonStyle(.bordered).disabled(search.loading)
                         Button { Task { await search.addOSM(near: position, radius: radius) } } label: {
-                            Label("Buscar más (OSM)", systemImage: "globe.europe.africa")
+                            Label("Ampliar con OSM", systemImage: "globe.europe.africa")
                         }
-                        .buttonStyle(.bordered)
-                        .disabled(search.loading)
-                        Button { createPlace = true } label: {
-                            Label("Crear lugar", systemImage: "plus")
-                        }
+                        .buttonStyle(.bordered).disabled(search.loading)
+                    }
+                    Button { createPlace = true } label: { Label("Crear lugar privado", systemImage: "plus") }
                         .buttonStyle(.borderedProminent)
-                    }
-                    if let warning = search.warning {
-                        Text(warning).font(.caption).foregroundStyle(.orange)
-                    }
-                    Text("OSM amplía la lista con lugares del mapa colaborativo (máx. 700 m, consulta manual cada 10 min). © OpenStreetMap contributors.")
+                    if let warning = search.warning { Text(warning).font(.caption).foregroundStyle(.orange) }
+                    Text("Las búsquedas por texto y sectores son manuales. OSM limita las consultas nuevas a una cada 10 minutos. Los sitios obtenidos no garantizan cobertura completa.")
                         .font(.caption2).foregroundStyle(.secondary)
                 } else {
                     Button("Buscar mi posición") { location.refreshPosition() }
@@ -252,7 +303,10 @@ struct NowView: View {
         }
         .navigationTitle("AquíEstuve")
         .task(id: location.coordinate) {
-            if let point = location.coordinate { await search.search(near: point, radius: radius) }
+            if let point = location.coordinate {
+                mapPosition = .region(mapRegion(point, radius: radius))
+                await search.search(near: point, radius: radius)
+            }
         }
         .onAppear { location.refreshPosition() }
         .sheet(isPresented: $createPlace) {
@@ -264,33 +318,135 @@ struct NowView: View {
                 previewPlace = nil
             }
         }
+        .fullScreenCover(isPresented: $fullMap) {
+            if let point = location.coordinate {
+                FullPlaceMap(search: search, center: point, radius: radius) { item in
+                    fullMap = false
+                    // Defer the second sheet until the full-screen modal is dismissed.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { previewPlace = item }
+                }
+            }
+        }
+    }
+}
+
+private struct FullPlaceMap: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var search: NearbySearch
+    let center: GeoPoint
+    let radius: Double
+    let onSelect: (PlaceCandidate) -> Void
+    @State private var camera: MapCameraPosition
+    @State private var visibleCenter: GeoPoint
+    @State private var visibleRadius: Double
+
+    init(search: NearbySearch, center: GeoPoint, radius: Double, onSelect: @escaping (PlaceCandidate) -> Void) {
+        self.search = search; self.center = center; self.radius = radius; self.onSelect = onSelect
+        _camera = State(initialValue: .region(MKCoordinateRegion(center: center.coordinate,
+                                  latitudinalMeters: radius * 2.5, longitudinalMeters: radius * 2.5)))
+        _visibleCenter = State(initialValue: center)
+        _visibleRadius = State(initialValue: radius)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                Map(position: $camera, interactionModes: .all) {
+                    UserAnnotation()
+                    ForEach(search.candidates + search.exploreResults.filter { new in
+                        !search.candidates.contains(where: { $0.id == new.id })
+                    }) { item in
+                        Annotation(item.name, coordinate: item.position.coordinate) {
+                            Button { onSelect(item) } label: {
+                                Image(systemName: item.categoryGroup.symbol)
+                                    .font(.title2).foregroundStyle(item.categoryGroup.color)
+                                    .padding(7).background(.regularMaterial, in: Circle())
+                            }
+                            .accessibilityLabel("Ver ficha de \(item.name)")
+                        }
+                    }
+                }
+                .mapControls { MapCompass(); MapScaleView(); MapUserLocationButton() }
+                .onMapCameraChange(frequency: .onEnd) { context in
+                    visibleCenter = GeoPoint(context.region.center)
+                    visibleRadius = min(3000, max(100, context.region.span.latitudeDelta * 111000 / 2))
+                }
+                VStack(spacing: 7) {
+                    Button {
+                        Task { await search.searchMapArea(near: visibleCenter, radius: visibleRadius) }
+                    } label: {
+                        Label("Buscar en esta zona", systemImage: "magnifyingglass")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(search.loading)
+                    Text("Mover el mapa no realiza consultas. Pellizca para acercar o alejar.")
+                        .font(.caption2).padding(5)
+                }
+                .padding(14)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Explorar mapa")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
+        }
     }
 }
 
 private struct NearbyPlacePreview: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: VisitStore
     let item: PlaceCandidate
     let confirm: () -> Void
+    @State private var category: String
+    @State private var customCategory = ""
+
+    init(item: PlaceCandidate, confirm: @escaping () -> Void) {
+        self.item = item; self.confirm = confirm
+        _category = State(initialValue: item.categoryLabel)
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(item.name).font(.title2.bold())
-                    Text("\(item.categoryLabel) · \(item.distance.readableDistance) de tu posición")
-                        .foregroundStyle(.secondary)
+                    Text("\(store.preferredCategory(for: item)) · \(item.distance.readableDistance) de la posición consultada")
+                        .font(.subheadline).foregroundStyle(.secondary)
                     if let address = item.address, !address.isEmpty {
                         Label(address, systemImage: "mappin.and.ellipse")
                             .font(.subheadline)
                     }
                     Map(initialPosition: .region(MKCoordinateRegion(
                         center: item.position.coordinate,
-                        span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)))) {
+                        latitudinalMeters: 420, longitudinalMeters: 420))) {
                         Marker(item.name, coordinate: item.position.coordinate)
                     }
-                    .frame(height: 350)
+                    .mapControls { MapCompass(); MapScaleView() }
+                    .frame(height: 330)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    Text("Revisa el pin antes de confirmar. El registro de la visita solo cambia cuando pulses el botón de confirmación.")
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Corregir categoría del lugar").font(.headline)
+                        Picker("Categoría", selection: $category) {
+                            Text(item.categoryLabel).tag(item.categoryLabel)
+                            ForEach(PlaceGroup.allCases.filter {
+                                $0 != .all && $0.title != item.categoryLabel
+                            }, id: \.rawValue) { group in
+                                Text(group.title).tag(group.title)
+                            }
+                        }
+                        TextField("O escribir categoría más concreta", text: $customCategory)
+                            .textInputAutocapitalization(.sentences)
+                        Button("Guardar categoría sin crear visita") {
+                            store.updateCategory(for: item, to: customCategory.isEmpty ? category : customCategory)
+                            dismiss()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .padding(12)
+                    .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    Text("Solo el botón inferior confirma tu presencia. Consultar este sitio o corregir su categoría no registra ninguna visita.")
                         .font(.caption).foregroundStyle(.secondary)
                     Button("Confirmar que estoy aquí") { confirm() }
                         .buttonStyle(.borderedProminent)
@@ -298,13 +454,9 @@ private struct NearbyPlacePreview: View {
                 }
                 .padding()
             }
-            .navigationTitle("Ubicación del lugar")
+            .navigationTitle("Ficha del lugar")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Cerrar") { dismiss() }
-                }
-            }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
         }
     }
 }

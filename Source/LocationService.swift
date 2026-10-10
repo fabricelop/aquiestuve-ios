@@ -10,18 +10,79 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     @Published private(set) var accuracy: Double?
     @Published private(set) var authorization: CLAuthorizationStatus = .notDetermined
     @Published private(set) var errorText: String?
+    @Published private(set) var walkMode = false
+    private var stationaryStart: CLLocation?
+    private var latestStationary: CLLocation?
     private let manager = CLLocationManager()
     private override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         authorization = manager.authorizationStatus
+        let savedStart = UserDefaults.standard.object(forKey: "ae_walk_start") as? Date
+        walkMode = savedStart.map { Date().timeIntervalSince($0) < 3 * 3600 } ?? false
         startIfAllowed()
     }
 
     func activate() { startIfAllowed() }
     func requestAccess() { manager.requestWhenInUseAuthorization() }
     func requestBackgroundAccess() { manager.requestAlwaysAuthorization() }
+
+    func setWalkMode(_ enabled: Bool) {
+        guard authorization == .authorizedAlways || !enabled else {
+            errorText = "Para registrar un paseo con la app bloqueada debes autorizar ubicación Siempre."
+            return
+        }
+        if !enabled { completeStationaryStop() }
+        walkMode = enabled
+        if enabled {
+            UserDefaults.standard.set(Date(), forKey: "ae_walk_start")
+            stationaryStart = nil
+            latestStationary = nil
+        } else {
+            UserDefaults.standard.removeObject(forKey: "ae_walk_start")
+            manager.stopUpdatingLocation()
+            manager.allowsBackgroundLocationUpdates = false
+            manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+            manager.distanceFilter = kCLDistanceFilterNone
+        }
+        startIfAllowed()
+    }
+
+    private func completeStationaryStop() {
+        guard let first = stationaryStart, let last = latestStationary,
+              last.timestamp.timeIntervalSince(first.timestamp) >= 80 else { return }
+        VisitStore.shared.receiveWalkStop(position: GeoPoint(first.coordinate),
+                                          arrival: first.timestamp, departure: last.timestamp)
+        stationaryStart = nil
+        latestStationary = nil
+    }
+
+    private func observeWalk(_ point: CLLocation) {
+        guard walkMode, point.horizontalAccuracy >= 0 && point.horizontalAccuracy <= 55 else { return }
+        if let start = UserDefaults.standard.object(forKey: "ae_walk_start") as? Date,
+           Date().timeIntervalSince(start) > 3 * 3600 {
+            setWalkMode(false)
+            return
+        }
+        if point.speed >= 1.7 {
+            completeStationaryStop()
+            stationaryStart = nil; latestStationary = nil
+            return
+        }
+        if let first = stationaryStart {
+            if point.distance(from: first) > 45 {
+                completeStationaryStop()
+                stationaryStart = point
+                latestStationary = point
+            } else {
+                latestStationary = point
+            }
+        } else if point.speed < 1.0 {
+            stationaryStart = point
+            latestStationary = point
+        }
+    }
 
     func startIfAllowed() {
         authorization = manager.authorizationStatus
@@ -31,6 +92,15 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         }
         if authorization == .authorizedWhenInUse || authorization == .authorizedAlways {
             manager.requestLocation()
+        }
+        if walkMode && authorization == .authorizedAlways {
+            manager.activityType = .fitness
+            manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+            manager.distanceFilter = kCLDistanceFilterNone
+            manager.pausesLocationUpdatesAutomatically = false
+            manager.allowsBackgroundLocationUpdates = true
+            manager.showsBackgroundLocationIndicator = true
+            manager.startUpdatingLocation()
         }
     }
 
@@ -49,6 +119,7 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         coordinate = GeoPoint(location.coordinate)
         accuracy = location.horizontalAccuracy
         errorText = nil
+        observeWalk(location)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -69,6 +140,26 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
 enum LocalNotifications {
     static func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
+    }
+
+    static func sendTestNotification(near point: GeoPoint?) {
+        let center = UNUserNotificationCenter.current()
+        let choices = point.map { NearbyNotificationCache.suggestions(for: $0) } ?? []
+        let category = UNNotificationCategory(identifier: "AE_TEST_NOTIFICATION",
+            actions: [UNNotificationAction(identifier: "AE_OPEN", title: "Abrir AquíEstuve",
+                                           options: [.foreground])], intentIdentifiers: [], options: [])
+        center.getNotificationCategories { existing in
+            center.setNotificationCategories(existing.union([category]))
+            let content = UNMutableNotificationContent()
+            content.title = "Prueba de AquíEstuve"
+            content.body = choices.isEmpty
+                ? "Aviso de prueba. Las visitas reales aparecerán cuando iOS las detecte."
+                : "Prueba de lugares conocidos: " + choices.map(\.name).joined(separator: " · ")
+            content.categoryIdentifier = "AE_TEST_NOTIFICATION"
+            content.sound = .default
+            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content,
+                trigger: UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)))
+        }
     }
 
     static func sendConfirmationRequest(near point: GeoPoint, visitID: UUID) {

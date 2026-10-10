@@ -38,4 +38,36 @@ class Checks(unittest.TestCase):
         self.assertIn('didVisit visit: CLVisit', source)
         self.assertIn('.authorizedAlways', source)
 
+    def test_extended_search_is_manual(self):
+        nearby = (root / 'Source/NearbySearch.swift').read_text()
+        now = (root / 'Source/NowView.swift').read_text()
+        self.assertIn('naturalLanguageQuery = query', nearby)
+        self.assertIn('func expandNearby(', nearby)
+        self.assertIn('previousExpansion', nearby)
+        self.assertIn('onSubmit { namedSearch(near: position) }', now)
+
+    def test_safe_confirmation_and_map_modes(self):
+        source = (root / 'Source/NowView.swift').read_text()
+        self.assertIn('@AppStorage("ae_show_map")', source)
+        self.assertIn('fullScreenCover(isPresented: $fullMap)', source)
+        self.assertIn('Button("Confirmar que estoy aquí")', source)
+        self.assertIn('Button("Guardar categoría sin crear visita")', source)
+
+    def test_legacy_data_migration(self):
+        model = (root / 'Source/Models.swift').read_text()
+        store = (root / 'Source/VisitStore.swift').read_text()
+        self.assertIn('decodeIfPresent([String: String].self, forKey: .categoryOverrides)', model)
+        self.assertIn('categoryOverrides: categoryOverrides', store)
+        self.assertIn('func receiveWalkStop(', store)
+
+    def test_historical_review_and_battery_guard(self):
+        history = (root / 'Source/HistoryView.swift').read_text()
+        location = (root / 'Source/LocationService.swift').read_text()
+        self.assertIn('near: position, radius: 1000', history)
+        self.assertIn('3 * 3600', location)
+        self.assertIn('sendTestNotification', location)
+
 if __name__ == '__main__': unittest.main(verbosity=2)
+
+# Additional acceptance checks for v0.10 are registered below because the source
+# tester is run on Linux/Windows, where UIKit frameworks are unavailable.

@@ -21,10 +21,28 @@ struct SettingsView: View {
                       systemImage: "info.circle")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Paseos (opcional)") {
+                Toggle("Modo Paseo: detectar paradas cortas", isOn: Binding(
+                    get: { location.walkMode },
+                    set: { location.setWalkMode($0) }
+                ))
+                Text("Para paseos concretos: analiza posibles pausas a partir del GPS y las guarda pendientes de revisión. Consume más batería que el modo normal, puede omitir pausas y termina automáticamente tras un máximo de 3 horas.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Text("Cuando vuelvas, entra en Historial → Pendientes para confirmar o descartar las paradas observadas.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if let error = location.errorText {
+                    Text(error).font(.footnote).foregroundStyle(.orange)
+                }
+            }
             Section("Avisos") {
                 Button("Autorizar avisos de visitas sin identificar") {
                     LocalNotifications.requestPermission()
                 }
+                Button("Probar notificación de pantalla bloqueada") {
+                    LocalNotifications.sendTestNotification(near: location.coordinate)
+                }
+                Text("Esta prueba envía un aviso después de 5 segundos. No crea una visita ni prueba la detección GPS. Bloquea el iPhone para comprobar si aparece.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Datos y privacidad") {
                 LabeledContent("Lugares guardados", value: "\(store.places.count)")
@@ -39,7 +57,7 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Acerca de") {
-                LabeledContent("Versión", value: "0.1 · MVP")
+                LabeledContent("Versión", value: "0.10 · Prueba")
                 LabeledContent("Coste", value: "0 €")
                 Text("La detección de visitas de iOS no es inmediata ni garantiza reconocer dos negocios contiguos. Puedes corregir cualquier estancia en Historial.")
                     .font(.footnote).foregroundStyle(.secondary)

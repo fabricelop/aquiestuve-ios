@@ -10,6 +10,13 @@ final class NearbySearch: ObservableObject {
     @Published private(set) var warning: String?
     @Published private(set) var appleCount = 0
     @Published private(set) var osmCount = 0
+    @Published private(set) var nameResults: [PlaceCandidate] = []
+    @Published private(set) var nameQuery: String = ""
+    @Published private(set) var exploreResults: [PlaceCandidate] = []
+    @Published private(set) var coverageLimited = false
+    private var expansion: [PlaceCandidate] = []
+    private var textCache: [String: (date: Date, places: [PlaceCandidate])] = [:]
+    private var previousExpansion: Date = .distantPast
     private var lastCenter: GeoPoint?
     private var lastRadius: Double = 250
     private var previousSearch: Date = .distantPast
@@ -25,6 +32,8 @@ final class NearbySearch: ObservableObject {
         loading = true
         warning = nil
         osmCount = 0
+        expansion = []
+        coverageLimited = false
         lastCenter = center
         lastRadius = radius
         previousSearch = Date()
@@ -45,6 +54,7 @@ final class NearbySearch: ObservableObject {
                     address: address.isEmpty ? nil : address)
             }
             appleCount = found.count
+            coverageLimited = found.count >= 45
             candidates = combined(found, near: center, radius: radius)
             NearbyNotificationCache.save(candidates, center: center)
         } catch {
@@ -114,6 +124,108 @@ final class NearbySearch: ObservableObject {
         } catch { warning = "No se pudo consultar OpenStreetMap: \(error.localizedDescription)" }
     }
 
+
+    /// Explicit search by name in a larger geographical area. NEVER run on each keystroke.
+    /// Results are kept separate from the nearby list and disappear when the query changes.
+    func searchByName(_ raw: String, near center: GeoPoint, radius: Double) async {
+        let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.count >= 2 else { warning = "Escribe al menos dos letras."; return }
+        guard !loading else { return }
+        let limit = min(10_000, max(1_000, radius))
+        let key = "\(query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current))-\(Int(center.latitude * 100))-\(Int(center.longitude * 100))-\(Int(limit))"
+        nameQuery = query
+        if let cache = textCache[key], Date().timeIntervalSince(cache.date) < 3600 {
+            nameResults = cache.places
+            warning = "Búsqueda recuperada de la memoria local."
+            return
+        }
+        loading = true
+        defer { loading = false }
+        warning = nil
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        request.region = MKCoordinateRegion(center: center.coordinate,
+            latitudinalMeters: limit * 2, longitudinalMeters: limit * 2)
+        do {
+            let response = try await MKLocalSearch(request: request).start()
+            let found = response.mapItems.compactMap { candidate($0) }.filter {
+                $0.position.distance(to: center) <= limit
+            }
+            let returnedIds = Set(found.map(\.id))
+            nameResults = combined(found, near: center, radius: limit).filter { item in
+                returnedIds.contains(item.id) ||
+                (item.savedID != nil && item.name.localizedCaseInsensitiveContains(query))
+            }
+            nameQuery = query
+            textCache[key] = (Date(), nameResults)
+            if nameResults.isEmpty { warning = "Sin coincidencias en Apple Maps; prueba otro nombre o zona." }
+        } catch {
+            warning = "No se pudo ampliar la búsqueda: \(error.localizedDescription)"
+        }
+    }
+
+    /// When nearby results are likely capped, split the circle into four smaller
+    /// bounded queries. Only by explicit user action, never automatically in background.
+    func expandNearby(near center: GeoPoint, radius: Double) async {
+        guard !loading else { return }
+        guard Date().timeIntervalSince(previousExpansion) >= 60 else {
+            warning = "Espera un minuto antes de repetir la búsqueda por sectores."
+            return
+        }
+        previousExpansion = Date()
+        loading = true
+        warning = "Buscando hasta cuatro sectores. Puede tardar unos segundos."
+        defer { loading = false }
+        var additional: [PlaceCandidate] = []
+        let offset = radius * 0.4
+        let latitude = offset / 111_000
+        let longitude = offset / max(20_000, 111_000 * cos(center.latitude * .pi / 180))
+        for (dy, dx) in [(-1.0,-1.0), (-1.0,1.0), (1.0,-1.0), (1.0,1.0)] {
+            let subcenter = CLLocationCoordinate2D(latitude: center.latitude + dy * latitude,
+                                                  longitude: center.longitude + dx * longitude)
+            let request = MKLocalPointsOfInterestRequest(center: subcenter,
+                                                         radius: max(100, radius * 0.58))
+            do {
+                let response = try await MKLocalSearch(request: request).start()
+                additional += response.mapItems.compactMap { candidate($0) }
+            } catch { continue }
+        }
+        // Retain original first-page candidates and deduplicate cross-sector findings.
+        expansion = additional
+        appleCount = candidates.filter { $0.source == .apple }.count + additional.count
+        candidates = combined(candidates + expansion, near: center, radius: radius)
+        NearbyNotificationCache.save(candidates, center: center)
+        warning = "Resultados ampliados con cuatro sectores; la cobertura no es exhaustiva."
+    }
+
+    /// Explicit search in a panned / zoomed map. Reuses point-of-interest search,
+    /// not the phone's current position. Never runs automatically on pan gestures.
+    func searchMapArea(near center: GeoPoint, radius: Double) async {
+        guard !loading else { return }
+        loading = true
+        defer { loading = false }
+        let radius = min(3_000, max(100, radius))
+        let request = MKLocalPointsOfInterestRequest(center: center.coordinate, radius: radius)
+        do {
+            let response = try await MKLocalSearch(request: request).start()
+            exploreResults = combined(response.mapItems.compactMap { candidate($0) },
+                                      near: center, radius: radius)
+        } catch { warning = "No se pudo explorar esta zona: \(error.localizedDescription)" }
+    }
+
+    private func candidate(_ item: MKMapItem) -> PlaceCandidate? {
+        guard let name = item.name, !name.isEmpty else { return nil }
+        let position = GeoPoint(item.placemark.coordinate)
+        let key = "\(name.lowercased())-\(Int(position.latitude * 100000))-\(Int(position.longitude * 100000))"
+        let street = [item.placemark.thoroughfare, item.placemark.subThoroughfare]
+            .compactMap { $0 }.joined(separator: " ")
+        let address = [street.isEmpty ? nil : street, item.placemark.locality]
+            .compactMap { $0 }.joined(separator: ", ")
+        return PlaceCandidate(source: .apple, sourceKey: key, name: name,
+            category: item.pointOfInterestCategory?.rawValue ?? "Establecimiento",
+            position: position, address: address.isEmpty ? nil : address)
+    }
+
     private func combined(_ fromApple: [PlaceCandidate], plus osm: [PlaceCandidate] = [],
                           near center: GeoPoint, radius: Double) -> [PlaceCandidate] {
         var output: [PlaceCandidate] = store.places.filter { $0.position.distance(to: center) <= radius }
@@ -121,6 +233,7 @@ final class NearbySearch: ObservableObject {
         for var item in (fromApple + osm) {
             item.distance = item.position.distance(to: center)
             guard item.distance <= radius else { continue }
+            if let category = store.categoryOverrides[item.id] { item.category = category }
             if let exact = store.places.first(where: { $0.source == item.source && $0.sourceKey == item.sourceKey }) {
                 // Already included via personal database.
                 if !output.contains(where: { $0.savedID == exact.id }) {

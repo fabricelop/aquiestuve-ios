@@ -7,6 +7,7 @@ final class VisitStore: ObservableObject {
     static let shared = VisitStore()
     @Published private(set) var places: [Place] = []
     @Published private(set) var stays: [Stay] = []
+    @Published private(set) var categoryOverrides: [String: String] = [:]
     @Published private(set) var lastError: String?
 
     private let storageURL: URL
@@ -19,12 +20,13 @@ final class VisitStore: ObservableObject {
            let stored = try? JSONDecoder().decode(StoredData.self, from: data) {
             places = stored.places
             stays = stored.stays
+            categoryOverrides = stored.categoryOverrides
         }
     }
 
     private func persist() {
         do {
-            let data = try JSONEncoder().encode(StoredData(places: places, stays: stays))
+            let data = try JSONEncoder().encode(StoredData(places: places, stays: stays, categoryOverrides: categoryOverrides))
             try data.write(to: storageURL, options: .atomic)
             try (storageURL as NSURL).setResourceValue(FileProtectionType.completeUntilFirstUserAuthentication,
                                                        forKey: .fileProtectionKey)
@@ -52,6 +54,7 @@ final class VisitStore: ObservableObject {
         guard let index = places.firstIndex(where: { $0.id == place.id }) else { return }
         places[index].name = name
         places[index].category = category
+        categoryOverrides[place.source.rawValue + ":" + place.sourceKey] = category
         persist()
     }
 
@@ -69,6 +72,8 @@ final class VisitStore: ObservableObject {
             }
         }
         places.removeAll(where: { $0.id == place.id })
+        // Deleted places must not appear again as category preferences.
+        categoryOverrides.removeValue(forKey: place.source.rawValue + ":" + place.sourceKey)
         persist()
     }
 
@@ -77,9 +82,26 @@ final class VisitStore: ObservableObject {
         deletePlace(place, deleteVisits: false)
     }
 
+    func preferredCategory(for candidate: PlaceCandidate) -> String {
+        categoryOverrides[candidate.id] ?? candidate.category
+    }
+
+    func updateCategory(for candidate: PlaceCandidate, to category: String) {
+        let clean = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        categoryOverrides[candidate.id] = clean
+        if let index = places.firstIndex(where: {
+            $0.source == candidate.source && $0.sourceKey == candidate.sourceKey
+        }) {
+            places[index].category = clean
+        }
+        persist()
+    }
+
     func savedCandidate(for place: Place, near point: GeoPoint) -> PlaceCandidate {
         PlaceCandidate(source: place.source, sourceKey: place.sourceKey, name: place.name,
-                       category: place.category, position: place.position,
+                       category: categoryOverrides[place.source.rawValue + ":" + place.sourceKey] ?? place.category,
+                       position: place.position,
                        distance: place.position.distance(to: point),
                        visits: visitCount(for: place), savedID: place.id)
     }
@@ -91,7 +113,8 @@ final class VisitStore: ObservableObject {
             place = existing
         } else {
             place = Place(source: candidate.source, sourceKey: candidate.sourceKey,
-                          name: candidate.name, category: candidate.category,
+                          name: candidate.name,
+                          category: preferredCategory(for: candidate),
                           position: candidate.position)
             places.append(place)
         }
@@ -185,9 +208,27 @@ final class VisitStore: ObservableObject {
         return !finiteDeparture && match == nil
     }
 
+
+    /// Brief stop observations from optional walk mode, always pending review.
+    func receiveWalkStop(position: GeoPoint, arrival: Date, departure: Date) {
+        guard departure.timeIntervalSince(arrival) >= 80,
+              departure > arrival, departure <= Date().addingTimeInterval(30) else { return }
+        // Reconcile with visits already observed by iOS or confirmed by the user.
+        if stays.contains(where: {
+            $0.position.distance(to: position) < 65 &&
+            $0.arrival < departure.addingTimeInterval(120) &&
+            ($0.departure ?? Date()) > arrival.addingTimeInterval(-120)
+        }) { return }
+        stays.append(Stay(placeID: nil, position: position, arrival: arrival,
+                          departure: departure, status: .unresolved, origin: "paseo"))
+        persist()
+    }
+
+    var pendingCount: Int { stays.filter { $0.placeID == nil }.count }
+
     func exportJSON() -> URL? {
         let path = FileManager.default.temporaryDirectory.appendingPathComponent("AquiEstuve-historial.json")
-        guard let data = try? JSONEncoder().encode(StoredData(places: places, stays: stays)),
+        guard let data = try? JSONEncoder().encode(StoredData(places: places, stays: stays, categoryOverrides: categoryOverrides)),
               (try? data.write(to: path, options: .atomic)) != nil else { return nil }
         return path
     }

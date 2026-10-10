@@ -107,6 +107,19 @@ enum PlaceTaxonomy {
             }
         }
         switch key {
+        // User-chosen broader groups remain recognizable after persistence.
+        case "restaurantesycomida", "comida": return result("Restaurantes y comida", .food)
+        case "cafesybares", "baresycafes": return result("Cafés y bares", .cafes)
+        case "tiendasycompras", "compras": return result("Tiendas y compras", .shopping)
+        case "salud": return result("Salud", .health)
+        case "ocio": return result("Ocio", .leisure)
+        case "cultura": return result("Cultura", .culture)
+        case "parquesynaturaleza": return result("Parques y naturaleza", .outdoors)
+        case "deporte": return result("Deporte", .sports)
+        case "transporte": return result("Transporte", .transport)
+        case "educacionytrabajo": return result("Educación y trabajo", .education)
+        case "alojamiento": return result("Alojamiento", .lodging)
+        case "servicios": return result("Servicios", .services)
         // Restauración y alimentación.
         case "restaurant", "restaurante": return result("Restaurante", .food)
         case "fastfood", "comidarapida": return result("Comida rápida", .food)
