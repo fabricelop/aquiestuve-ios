@@ -12,7 +12,8 @@
     <key>LSRequiresIPhoneOS</key><true/>
     <key>UILaunchScreen</key><dict/>
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
-    <key>NSLocationWhenInUseUsageDescription</key><string>Mostrarte los lugares cercanos y registrar tus estancias cuando lo solicites.</string>
+    <key>NSMotionUsageDescription</key><string>Usamos los eventos de movimiento para activar temporalmente una detección más precisa de paradas cuando tú lo permites.</string>
+  <key>NSLocationWhenInUseUsageDescription</key><string>Mostrarte los lugares cercanos y registrar tus estancias cuando lo solicites.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>Detectar llegadas y salidas incluso cuando el iPhone esté bloqueado, para tu historial privado.</string>
     <key>NSSupportsLiveActivities</key><true/>
     <key>CFBundleURLTypes</key><array>

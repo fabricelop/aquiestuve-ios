@@ -7,6 +7,8 @@ struct SettingsView: View {
     @EnvironmentObject private var store: VisitStore
     @State private var export: ExportFile?
     @StateObject private var live = LivePlacesManager.shared
+    @State private var showDetailedOptions = false
+    @State private var showLiveDiagnostics = false
     var body: some View {
         Form {
             Section("Localización") {
@@ -22,30 +24,30 @@ struct SettingsView: View {
                       systemImage: "info.circle")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Paseos (opcional)") {
-                Toggle("Modo Paseo: detectar paradas cortas", isOn: Binding(
-                    get: { location.walkMode },
-                    set: { location.setWalkMode($0) }
+            Section("Detección de estancias") {
+                Toggle("Movimiento inteligente", isOn: Binding(
+                    get: { location.smartMotionEnabled },
+                    set: { location.setSmartMotion($0) }
                 ))
-                Text("Sin este modo, iOS sigue detectando visitas con bajo consumo, pero puede omitir paradas cortas. El modo Paseo emplea GPS más preciso, exige movimiento sostenido para cerrar estancias y finaliza como máximo en 3 horas.")
+                .tint(.indigo)
+                Label(location.smartMotionEnabled ? location.smartMotionStatus : "Modo ahorro · visitas pasivas de iOS",
+                      systemImage: location.smartMotionEnabled ? "figure.walk.motion" : "leaf")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("Si lo activas, los indicios de actividad física pueden iniciar comprobaciones GPS breves; no es seguimiento continuo y iOS puede retrasarlas al suspender la app. Sin activarlo, se siguen registrando visitas habituales.")
                     .font(.footnote).foregroundStyle(.secondary)
-                Text("Cuando vuelvas, entra en Historial → Pendientes para confirmar o descartar las paradas observadas.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                DisclosureGroup("Paseo detallado manual", isExpanded: $showDetailedOptions) {
+                    Toggle("Detectar paradas cortas durante un paseo", isOn: Binding(
+                        get: { location.walkMode },
+                        set: { location.setWalkMode($0) }
+                    ))
+                    Text("GPS más preciso durante un máximo de tres horas. Tiene prioridad sobre el modo inteligente y consume más batería.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 if let error = location.errorText {
                     Text(error).font(.footnote).foregroundStyle(.orange)
                 }
             }
-            Section("Avisos") {
-                Button("Autorizar avisos de visitas sin identificar") {
-                    LocalNotifications.requestPermission()
-                }
-                Button("Probar notificación de pantalla bloqueada") {
-                    LocalNotifications.sendTestNotification(near: location.coordinate)
-                }
-                Text("Esta prueba envía un aviso después de 5 segundos. No crea una visita ni prueba la detección GPS. Bloquea el iPhone para comprobar si aparece.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section("Pantalla de bloqueo · Actividad en directo") {
+            Section("Pantalla de bloqueo") {
                 if live.enabled {
                     Button("Cerrar panel de lugares") { live.stop() }
                 } else {
@@ -53,14 +55,19 @@ struct SettingsView: View {
                         live.start(near: location.coordinate)
                     }
                 }
-                Button("Prueba visual del panel (sin GPS ni visitas)") { live.startVisualTest() }
-                Button("Ver diagnóstico de iOS y extensión") { live.inspect() }
-                if !live.status.isEmpty { Text(live.status).font(.caption) }
-                if !live.diagnosticText.isEmpty {
-                    Text(live.diagnosticText).font(.caption.monospaced()).textSelection(.enabled)
+                if !live.status.isEmpty { Text(live.status).font(.caption).foregroundStyle(.secondary) }
+                DisclosureGroup("Diagnóstico de Actividad en directo", isExpanded: $showLiveDiagnostics) {
+                    Button("Prueba visual del panel (sin GPS ni visitas)") { live.startVisualTest() }
+                    Button("Ver diagnóstico de iOS y extensión") { live.inspect() }
+                    if !live.diagnosticText.isEmpty {
+                        Text(live.diagnosticText).font(.caption.monospaced()).textSelection(.enabled)
+                    }
+                    Text("Que la actividad esté activa no demuestra que WidgetKit haya dibujado la extensión. Si la prueba no se ve, hay que comprobar su registro y firma al instalarla con Sideloadly.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                Text("La actividad de iOS es experimental: si su interfaz no aparece, usa Pulse dentro de la app. El panel muestra hasta tres candidatos recientes. Tocar un lugar abre su ficha para confirmar; no registra visitas por accidente. No consulta GPS por su cuenta y puede dejar de actualizarse si iOS no despierta la app. iOS limita su duración.")
-                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Section("Avisos") {
+                Button("Autorizar avisos de visitas sin identificar") { LocalNotifications.requestPermission() }
             }
             Section("Datos y privacidad") {
                 LabeledContent("Lugares guardados", value: "\(store.places.count)")
@@ -75,7 +82,7 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Acerca de") {
-                LabeledContent("Versión", value: "0.14 · Radar y Guía")
+                LabeledContent("Versión", value: "0.15 · Radar inteligente")
                 LabeledContent("Coste", value: "0 €")
                 Text("La detección de visitas de iOS no es inmediata ni garantiza reconocer dos negocios contiguos. Puedes corregir cualquier estancia en Historial.")
                     .font(.footnote).foregroundStyle(.secondary)

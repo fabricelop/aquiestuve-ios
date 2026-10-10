@@ -1,6 +1,6 @@
-# AquíEstuve v0.14 · Radar Pulse + Guía
+# AquíEstuve v0.15 · Radar mejorado y Movimiento inteligente
 
-App nativa y gratuita para iPhone (iOS 17+) que une dos experiencias sin mezclarlas: registrar las estancias reales y descubrir establecimientos cercanos o en otra ciudad. Se mantiene el mismo bundle identifier `com.aquiestuve.ios` para instalar encima de v0.13 sin desinstalar ni perder los datos locales.
+App nativa y gratuita para iPhone (iOS 17+) que une dos experiencias sin mezclarlas: registrar las estancias reales y descubrir establecimientos cercanos o en otra ciudad. Se mantiene el mismo bundle identifier `com.aquiestuve.ios` para instalar encima de v0.14 sin desinstalar ni perder los datos locales.
 
 ## Radar inteligente
 
@@ -19,7 +19,7 @@ App nativa y gratuita para iPhone (iOS 17+) que une dos experiencias sin mezclar
 
 - Pestaña «Guía» en la portada, con búsqueda de ciudad/barrio/destino mediante MapKit.
 - Filtros rápidos de categorías, búsqueda de lugares por nombre y selector de **323 categorías detalladas**.
-- Vista de lista predeterminada para cargar con fluidez; mapa solo al solicitarlo. Lugares ocultos del radar siguen en el buscador y se pueden restaurar.
+- Vista de lista predeterminada para cargar con fluidez; mapa solo al solicitarlo. Los lugares ocultos están excluidos por defecto y reaparecen mediante un check de la Guía para poder recuperarlos.
 - Favoritos también editables desde la guía. Buscar o marcar favoritos **nunca crea una visita**.
 
 ## Visitas y autonomía
@@ -37,3 +37,12 @@ App nativa y gratuita para iPhone (iOS 17+) que une dos experiencias sin mezclar
 - `swiftc Source/StayReconciliation.swift Tests/check_episodes.swift -o episode-tests && ./episode-tests`
 
 La compilación completa con el SDK de iOS corresponde al workflow manual de GitHub Actions; **no puede validarse íntegramente en este entorno Linux**. Ejecutar una sola vez el actualizador Windows, revisar el estado de GitHub y no instalar una IPA si la compilación falla. Antes de actualizar, exportar «Copia completa JSON» y conservarla fuera del iPhone. No desinstalar la aplicación actual.
+
+
+## 0.15 · Ajustes y movimiento inteligente
+
+- La Guía excluye descartados por defecto; activa «Mostrar descartados del Radar» para encontrarlos y recuperarlos (lista y mapa).
+- Tarjetas opacas; el gesto vertical se prioriza desde la tarjeta, con alternativa «Archivar» en el menú de tres puntos.
+- Interruptor **Movimiento inteligente** (optativo). Usa Core Motion con permiso de actividad física y ráfagas limitadas de GPS cuando el proceso recibe indicios de movimiento o parada. No garantiza detectar paradas breves si iOS suspende la app. El modo pasivo sigue funcionando sin abrir la app cada día, con permiso «Siempre».
+- El paseo manual sigue en Ajustes → Detección de estancias → Paseo detallado manual.
+- La prueba de Actividad en directo queda aislada de las actualizaciones de ubicación; el diagnóstico permite comprobar el identificador y ejecutable de la extensión, **no** su firma efectiva o su representación en WidgetKit. Si sigue sin dibujarse, investigar Sideloadly/la firma de la extensión, no darla por corregida.

@@ -183,7 +183,7 @@ struct PulseView: View {
             }
             HStack(spacing: 8) {
                 Image(systemName: "leaf.fill").foregroundStyle(.green)
-                Text("\(location.walkMode ? "Paseo detallado" : "Detección pasiva") · Sin búsquedas continuas")
+                Text("\(location.walkMode ? "Paseo detallado" : location.smartMotionEnabled ? "Movimiento inteligente" : "Detección pasiva") · Sin búsquedas continuas")
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -199,7 +199,7 @@ struct PulseView: View {
                 Text(store.activeStay.flatMap { store.place(for: $0)?.name } ??
                      (location.coordinate == nil ? "Esperando posición" : "Explorando tu entorno"))
                     .font(.headline).lineLimit(2)
-                Text(location.walkMode ? location.mobilityHint : "Bajo consumo · visitas automáticas")
+                Text(location.walkMode || location.smartMotionEnabled ? location.mobilityHint : "Bajo consumo · visitas automáticas")
                     .font(.caption).foregroundStyle(.white.opacity(0.75))
                 if let current = store.activeStay {
                     TimelineView(.periodic(from: .now, by: 60)) { tick in
@@ -368,10 +368,10 @@ private struct RadarSwipeCard: View {
 
     private var tint: Color { item.categoryGroup.color }
     private var label: String {
-        if translation.height < -75 && abs(translation.height) > abs(translation.width) { return "ARCHIVAR" }
-        if translation.width > 75 { return "FAVORITO" }
-        if translation.width < -185 { return "OCULTAR AQUÍ" }
-        if translation.width < -65 { return "AHORA NO" }
+        if translation.height < -48 && -translation.height > abs(translation.width) * 0.9 { return "ARCHIVAR" }
+        if translation.width > 65 { return "FAVORITO" }
+        if translation.width < -168 { return "OCULTAR AQUÍ" }
+        if translation.width < -55 { return "AHORA NO" }
         return ""
     }
     var body: some View {
@@ -398,9 +398,22 @@ private struct RadarSwipeCard: View {
                     .font(.caption.weight(.semibold))
             }
             .foregroundStyle(.white.opacity(0.9))
-            Button("Ver detalles y mapa", action: onOpen)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
+            HStack {
+                Button("Ver detalles y mapa", action: onOpen)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Menu {
+                    Button("Archivar de sugerencias", systemImage: "archivebox") { onSwipe(.archive) }
+                    Button("Ocultar en esta zona", systemImage: "eye.slash") { onSwipe(.nearby) }
+                    Button("Ahora no", systemImage: "clock") { onSwipe(.later) }
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white)
+                }
+                .accessibilityLabel("Más opciones para este sitio")
+            }
             Button(action: onConfirm) {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
@@ -418,7 +431,7 @@ private struct RadarSwipeCard: View {
         .frame(maxWidth: .infinity, minHeight: 292, maxHeight: 292)
         .background {
             RoundedRectangle(cornerRadius: 25)
-                .fill(LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.40), tint.opacity(0.92)],
+                .fill(LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.40), tint],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay(alignment: .topTrailing) {
                     Circle().stroke(.white.opacity(0.13), lineWidth: 24)
@@ -429,18 +442,24 @@ private struct RadarSwipeCard: View {
         }
         .offset(translation)
         .rotationEffect(.degrees(Double(translation.width / 22)))
-        .gesture(DragGesture(minimumDistance: 22)
+        // The card owns drags starting on it. Otherwise the enclosing vertical
+        // ScrollView consumes upward swipes before they reach the card.
+        .contentShape(RoundedRectangle(cornerRadius: 25))
+        .highPriorityGesture(DragGesture(minimumDistance: 12)
             .onChanged { translation = $0.translation }
             .onEnded { value in
                 let x = value.translation.width
                 let y = value.translation.height
+                // Predicted translation makes a short, fast flick usable.
+                let forecast = value.predictedEndTranslation
+                let upDistance = max(-y, -forecast.height * 0.7)
                 let action: RadarSwipeAction?
-                if y < -105 && abs(y) > abs(x) { action = .archive }
-                else if x > 100 { action = .favorite }
-                else if x < -195 { action = .nearby }
-                else if x < -80 { action = .later }
+                if upDistance > 75 && upDistance > abs(x) * 0.9 { action = .archive }
+                else if x > 90 { action = .favorite }
+                else if x < -175 { action = .nearby }
+                else if x < -75 { action = .later }
                 else { action = nil }
-                withAnimation(.spring(response: 0.3)) { translation = .zero }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { translation = .zero }
                 if let action { onSwipe(action) }
             })
         .accessibilityElement(children: .contain)

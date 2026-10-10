@@ -15,15 +15,20 @@ final class LivePlacesManager: ObservableObject {
     func inspect() {
         let ext = Bundle.main.builtInPlugInsURL?.appendingPathComponent("AquiEstuveLiveWidget.appex")
         let installed = ext.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        let bundle = ext.flatMap { Bundle(url: $0) }
+        let extensionID = bundle?.bundleIdentifier ?? "sin identificador"
+        let pointID = (bundle?.infoDictionary?["NSExtension"] as? [String: Any])?["NSExtensionPointIdentifier"] as? String ?? "desconocido"
+        let executable = bundle?.executableURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         let activities = Activity<LivePlaceAttributes>.activities
         enabled = !activities.isEmpty
-        let states = activities.map { "\($0.id.prefix(6)): \(String(describing: $0.activityState))" }
-            .joined(separator: ", ")
-        diagnosticText = "Extensión: \(installed ? "incluida" : "no encontrada") · Permiso iOS: \(ActivityAuthorizationInfo().areActivitiesEnabled ? "activo" : "desactivado") · Actividades: \(activities.count)" + (states.isEmpty ? "" : " · " + states)
+        let states = activities.map { activity in
+            "\(activity.id.prefix(6)): \(String(describing: activity.activityState)), prueba=\(activity.content.state.diagnostic)"
+        }.joined(separator: ", ")
+        diagnosticText = "Extensión: \(installed ? "incluida" : "no encontrada") · Ejecutable: \(executable ? "sí" : "no") · ID: \(extensionID) · Punto: \(pointID) · Permiso iOS: \(ActivityAuthorizationInfo().areActivitiesEnabled ? "activo" : "desactivado") · Actividades: \(activities.count)" + (states.isEmpty ? "" : " · " + states) + " · La firma y la representación en WidgetKit no pueden verificarse desde esta pantalla."
     }
 
     func refreshIfUseful(near center: GeoPoint) async {
-        guard enabled, !Activity<LivePlaceAttributes>.activities.isEmpty else { return }
+        guard enabled, Activity<LivePlaceAttributes>.activities.contains(where: { !$0.content.state.diagnostic }) else { return }
         if Date().timeIntervalSince(lastRefreshAt) < 180,
            (lastRefreshPoint?.distance(to: center) ?? 0) < 100 { return }
         await refresh(near: center)
@@ -85,12 +90,12 @@ final class LivePlacesManager: ObservableObject {
     }
 
     func refresh(near center: GeoPoint) async {
-        guard !Activity<LivePlaceAttributes>.activities.isEmpty else { return }
+        guard Activity<LivePlaceAttributes>.activities.contains(where: { !$0.content.state.diagnostic }) else { return }
         lastRefreshAt = Date()
         lastRefreshPoint = center
         let content = LivePlaceAttributes.ContentState(updatedAt: Date(),
             title: "¿Dónde estás?", options: suggestions(near: center))
-        for activity in Activity<LivePlaceAttributes>.activities {
+        for activity in Activity<LivePlaceAttributes>.activities where !activity.content.state.diagnostic {
             await activity.update(ActivityContent(state: content,
                                   staleDate: Date().addingTimeInterval(1800)))
         }

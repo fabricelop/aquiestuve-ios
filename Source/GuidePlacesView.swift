@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 
 /// Place discovery is intentionally manual and separated from recording a visit.
-/// Search results include archived/snoozed radar places so nothing is ever lost.
+/// Radar-hidden results are excluded by default; the user can opt in to recover them.
 struct GuidePlacesView: View {
     @EnvironmentObject private var store: VisitStore
     @EnvironmentObject private var location: LocationService
@@ -17,6 +17,7 @@ struct GuidePlacesView: View {
     @State private var chooseDetailedCategory = false
     @State private var keyword = ""
     @State private var showMap = false
+    @State private var showSuppressed = false
     @State private var hasLoaded = false
     @State private var selectedItem: PlaceCandidate?
     @State private var message = ""
@@ -40,7 +41,8 @@ struct GuidePlacesView: View {
                 [place.name, place.categoryLabel, place.address ?? ""].contains {
                     $0.localizedStandardContains(query)
                 } || (keywordWasSearched && matchesCurrentRemote)
-            return fitsCategory && fitsKeyword
+            let visible = showSuppressed || preferences.isVisible(place, at: center ?? place.position)
+            return fitsCategory && fitsKeyword && visible
         }.sorted { $0.distance < $1.distance }
     }
     @State private var keywordWasSearched = false
@@ -191,8 +193,13 @@ struct GuidePlacesView: View {
             HStack {
                 Text("\(results.count) lugares").font(.headline)
                 Spacer()
-                Text("Incluye sitios ocultos del radar").font(.caption2).foregroundStyle(.secondary)
             }
+            Toggle(isOn: $showSuppressed) {
+                Label("Mostrar descartados del Radar", systemImage: "eye")
+                    .font(.subheadline.weight(.medium))
+            }
+            .tint(.indigo)
+            .accessibilityHint("Permite ver y recuperar lugares archivados, silenciados u ocultos en esta zona")
             if showMap, let center {
                 Map(initialPosition: .region(MKCoordinateRegion(center: center.coordinate,
                                       latitudinalMeters: 2200, longitudinalMeters: 2200))) {

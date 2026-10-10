@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import CoreLocation
+import CoreMotion
 import UserNotifications
 
 @MainActor
@@ -11,6 +12,14 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     @Published private(set) var authorization: CLAuthorizationStatus = .notDetermined
     @Published private(set) var errorText: String?
     @Published private(set) var walkMode = false
+    @Published private(set) var smartMotionEnabled = UserDefaults.standard.bool(forKey: "ae_smart_motion_enabled")
+    @Published private(set) var smartMotionStatus = "Detección pasiva"
+    private let motion = CMMotionActivityManager()
+    private var smartBurstStartedAt: Date?
+    private var smartBurstTimeout: Task<Void, Never>?
+    private var lastBurstEnded = Date.distantPast
+    private var lastMotionChange = Date.distantPast
+    private var sawMovementAt = Date.distantPast
     private var stationaryStart: CLLocation?
     private var latestStationary: CLLocation?
     private var departingSince: Date?
@@ -24,11 +33,114 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         let savedStart = UserDefaults.standard.object(forKey: "ae_walk_start") as? Date
         walkMode = savedStart.map { Date().timeIntervalSince($0) < 3 * 3600 } ?? false
         startIfAllowed()
+        configureSmartMotion()
     }
 
     func activate() { startIfAllowed() }
     func requestAccess() { manager.requestWhenInUseAuthorization() }
     func requestBackgroundAccess() { manager.requestAlwaysAuthorization() }
+
+    /// Explicit opt-in. Core Motion may deliver movement events while the process
+    /// runs; it does not guarantee an instant wake when iOS has suspended the app.
+    func setSmartMotion(_ enabled: Bool) {
+        guard !enabled || authorization == .authorizedAlways else {
+            errorText = "El movimiento inteligente necesita ubicación Siempre."
+            return
+        }
+        guard !enabled || CMMotionActivityManager.isActivityAvailable() else {
+            errorText = "Este dispositivo no ofrece detección de actividad física."
+            return
+        }
+        smartMotionEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "ae_smart_motion_enabled")
+        errorText = nil
+        if enabled { configureSmartMotion() }
+        else {
+            motion.stopActivityUpdates()
+            stopSmartBurst()
+            smartMotionStatus = "Detección pasiva"
+        }
+    }
+
+    private func configureSmartMotion() {
+        guard smartMotionEnabled, !walkMode, authorization == .authorizedAlways,
+              CMMotionActivityManager.isActivityAvailable() else { return }
+        let motionPermission = CMMotionActivityManager.authorizationStatus()
+        if motionPermission == .denied || motionPermission == .restricted {
+            smartMotionStatus = "Autoriza Movimiento y forma física en Ajustes del iPhone"
+            return
+        }
+        motion.stopActivityUpdates()
+        motion.startActivityUpdates(to: .main) { [weak self] activity in
+            guard let activity else { return }
+            Task { @MainActor [weak self] in self?.handleMotion(activity) }
+        }
+        smartMotionStatus = "Inteligente · esperando movimiento"
+    }
+
+    private func handleMotion(_ activity: CMMotionActivity) {
+        guard smartMotionEnabled, !walkMode else { return }
+        let now = Date()
+        // Core Motion's startDate can be hours old for a continuing walk.
+        // Accept the currently delivered state, but not low-confidence guesses.
+        guard activity.confidence != .low else { return }
+        guard now.timeIntervalSince(lastMotionChange) > 12 else { return }
+        lastMotionChange = now
+        if activity.walking || activity.running {
+            sawMovementAt = now
+            smartMotionStatus = "Movimiento detectado · comprobando paradas"
+            startSmartBurst(minimumInterval: 600)
+        } else if activity.automotive {
+            sawMovementAt = now
+            smartMotionStatus = "En vehículo · evitando falsas paradas"
+            stopSmartBurst()
+        } else if activity.stationary {
+            smartMotionStatus = "Posible parada · comprobación breve"
+            if now.timeIntervalSince(sawMovementAt) < 3600 {
+                startSmartBurst(minimumInterval: 120)
+            }
+        }
+    }
+
+    /// Small, bounded GPS sample. No continuous high-accuracy tracking.
+    private func startSmartBurst(minimumInterval: TimeInterval) {
+        guard smartMotionEnabled, !walkMode, authorization == .authorizedAlways,
+              smartBurstStartedAt == nil,
+              Date().timeIntervalSince(lastBurstEnded) >= minimumInterval else { return }
+        let started = Date()
+        smartBurstStartedAt = started
+        stationaryStart = nil; latestStationary = nil; departingSince = nil
+        manager.activityType = .fitness
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        manager.distanceFilter = 12
+        manager.pausesLocationUpdatesAutomatically = true
+        manager.allowsBackgroundLocationUpdates = true
+        manager.startUpdatingLocation()
+        smartBurstTimeout?.cancel()
+        smartBurstTimeout = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 180_000_000_000)
+            guard !Task.isCancelled, let self,
+                  self.smartBurstStartedAt == started else { return }
+            self.stopSmartBurst()
+        }
+    }
+
+    private func stopSmartBurst() {
+        guard smartBurstStartedAt != nil else { return }
+        smartBurstStartedAt = nil
+        lastBurstEnded = Date()
+        smartBurstTimeout?.cancel()
+        smartBurstTimeout = nil
+        if !walkMode {
+            completeStationaryStop()
+            manager.stopUpdatingLocation()
+            manager.allowsBackgroundLocationUpdates = false
+            manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+            manager.distanceFilter = kCLDistanceFilterNone
+            manager.pausesLocationUpdatesAutomatically = true
+        }
+        smartMotionStatus = "Inteligente · ahorro de batería"
+    }
 
     func setWalkMode(_ enabled: Bool) {
         guard authorization == .authorizedAlways || !enabled else {
@@ -36,6 +148,10 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
             return
         }
         if !enabled { completeStationaryStop() }
+        if enabled {
+            stopSmartBurst()
+            motion.stopActivityUpdates()
+        }
         walkMode = enabled
         if enabled {
             UserDefaults.standard.set(Date(), forKey: "ae_walk_start")
@@ -64,8 +180,9 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
     }
 
     private func observeWalk(_ point: CLLocation) {
-        guard walkMode, point.horizontalAccuracy >= 0 && point.horizontalAccuracy <= 55 else { return }
-        if let start = UserDefaults.standard.object(forKey: "ae_walk_start") as? Date,
+        guard walkMode || smartBurstStartedAt != nil,
+              point.horizontalAccuracy >= 0 && point.horizontalAccuracy <= 55 else { return }
+        if walkMode, let start = UserDefaults.standard.object(forKey: "ae_walk_start") as? Date,
            Date().timeIntervalSince(start) > 3 * 3600 {
             setWalkMode(false)
             return
@@ -107,6 +224,7 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         if authorization == .authorizedAlways {
             manager.startMonitoringVisits()
             manager.startMonitoringSignificantLocationChanges()
+            configureSmartMotion()
         }
         if authorization == .authorizedWhenInUse || authorization == .authorizedAlways {
             manager.requestLocation()
@@ -138,6 +256,10 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
         accuracy = location.horizontalAccuracy
         errorText = nil
         observeWalk(location)
+        // If iOS delayed the timeout task in the background, a location event
+        // still enforces the same strict three-minute upper bound.
+        if let begun = smartBurstStartedAt,
+           Date().timeIntervalSince(begun) >= 180 { stopSmartBurst() }
         Task { await LivePlacesManager.shared.refreshIfUseful(near: GeoPoint(location.coordinate)) }
     }
 

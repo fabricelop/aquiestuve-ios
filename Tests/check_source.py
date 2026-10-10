@@ -164,6 +164,45 @@ class Checks(unittest.TestCase):
         self.assertIn('Date().timeIntervalSince(lastDiscovery) >= 600', pulse)
         self.assertIn('TimelineView(.periodic(from: .now, by: 60))', pulse)
 
+    def test_smart_motion_opt_in_and_battery_bounds(self):
+        location = (root / 'Source/LocationService.swift').read_text(encoding='utf-8')
+        settings = (root / 'Source/SettingsView.swift').read_text(encoding='utf-8')
+        with (root / 'Source/Info.plist').open('rb') as handle:
+            info = plistlib.load(handle)
+        self.assertTrue(info.get('NSMotionUsageDescription'))
+        self.assertIn('UserDefaults.standard.bool(forKey: "ae_smart_motion_enabled")', location)
+        self.assertIn('func setSmartMotion(_ enabled: Bool)', location)
+        self.assertIn('CMMotionActivityManager', location)
+        self.assertIn('manager.startMonitoringVisits()', location)
+        self.assertIn('Task.sleep(nanoseconds: 180_000_000_000)', location)
+        self.assertIn('lastBurstEnded', location)
+        self.assertIn('motion.stopActivityUpdates()', location)
+        self.assertIn('Toggle("Movimiento inteligente"', settings)
+        self.assertIn('Paseo detallado manual', settings)
+
+    def test_guide_hidden_by_default_and_visible_on_request(self):
+        guide = (root / 'Source/GuidePlacesView.swift').read_text(encoding='utf-8')
+        self.assertIn('@State private var showSuppressed = false', guide)
+        self.assertIn('preferences.isVisible(place, at:', guide)
+        self.assertIn('Toggle(isOn: $showSuppressed)', guide)
+        self.assertIn('ForEach(Array(results.prefix(45)))', guide)
+        self.assertIn('ForEach(Array(results.prefix(80)))', guide)
+
+    def test_opaque_reliable_radar_gestures(self):
+        pulse = (root / 'Source/PulseView.swift').read_text(encoding='utf-8')
+        self.assertIn('.highPriorityGesture(DragGesture(minimumDistance: 12)', pulse)
+        self.assertIn('value.predictedEndTranslation', pulse)
+        self.assertIn('Button("Archivar de sugerencias"', pulse)
+        self.assertIn('tint],', pulse)
+        self.assertNotIn('tint.opacity(0.92)', pulse)
+
+    def test_diagnostic_is_not_overwritten_by_gps(self):
+        manager = (root / 'Source/LivePlacesManager.swift').read_text(encoding='utf-8')
+        settings = (root / 'Source/SettingsView.swift').read_text(encoding='utf-8')
+        self.assertIn('where !activity.content.state.diagnostic', manager)
+        self.assertIn('Diagnóstico de Actividad en directo', settings)
+        self.assertIn('La firma y la representación en WidgetKit no pueden verificarse', manager)
+
     def test_radar_and_guide_preferences(self):
         rules = (root / 'Source/RadarRules.swift').read_text(encoding='utf-8')
         prefs = (root / 'Source/RadarPreferencesStore.swift').read_text(encoding='utf-8')
