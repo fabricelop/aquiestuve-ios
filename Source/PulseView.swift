@@ -46,7 +46,7 @@ struct PulseView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $candidateToReview) { item in
-            NearbyPlacePreview(item: item) {
+            NearbyPlacePreview(item: item, alternatives: candidates) {
                 store.assign(item)
                 candidateToReview = nil
             }
