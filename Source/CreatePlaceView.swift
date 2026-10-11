@@ -5,13 +5,15 @@ struct CreatePlaceView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: VisitStore
     let initial: GeoPoint
+    var visitID: UUID? = nil
     @State private var point: GeoPoint
     @State private var name = ""
     @State private var category = "Personal"
     @State private var assignToCurrent = true
     @State private var chooseCategory = false
 
-    init(initial: GeoPoint, assignToCurrentByDefault: Bool = true) {
+    init(initial: GeoPoint, assignToCurrentByDefault: Bool = true, visitID: UUID? = nil) {
+        self.visitID = visitID
         self.initial = initial
         _point = State(initialValue: initial)
         _assignToCurrent = State(initialValue: assignToCurrentByDefault)
@@ -53,7 +55,7 @@ struct CreatePlaceView: View {
                         let place = store.createPersonalPlace(name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                                                               category: category, at: point)
                         if assignToCurrent {
-                            store.assign(store.savedCandidate(for: place, near: point))
+                            store.assign(store.savedCandidate(for: place, near: point), to: visitID)
                         }
                         dismiss()
                     }

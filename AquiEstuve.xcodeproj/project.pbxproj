@@ -20,6 +20,7 @@
         C86838BE69809FA4830D488F /* NowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A64AA330F618CF7F68E1927 /* NowView.swift */; };
         569A2637D3997306CBA554CB /* PlaceTaxonomy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C2FF1DFD7BEB46E9A20773 /* PlaceTaxonomy.swift */; };
         879FB32B38A8F9601ABE9C98 /* PulseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51EAF18F1F9FE809030D36F /* PulseView.swift */; };
+        63A3399842ECCD967CE8ED8E /* QuickPlacePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 697D5A6EF16CB0278882E510 /* QuickPlacePicker.swift */; };
         7527488C9EA9436F02156D4F /* RadarPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFED8D881034DC2D33C3216 /* RadarPreferencesStore.swift */; };
         BA284E91174C4D7CA8E611EF /* RadarRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8485145F450CDEF696F67CF /* RadarRules.swift */; };
         D6F50024B07D6F4510A13F04 /* RecoveredPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32149BB9D7376998914F024A /* RecoveredPlacesView.swift */; };
@@ -30,6 +31,7 @@
         E37582CC990E58B9035F65E3 /* StayReconciliation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0EEB2FB9D5ED9375166090C /* StayReconciliation.swift */; };
         6B94C998EE49414C6CB94EFC /* VenuePriority.swift in Sources */ = {isa = PBXBuildFile; fileRef = B428627BC02ECE76FFD77991 /* VenuePriority.swift */; };
         ED2DED7A108E014431E14F94 /* VisitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C517FCBDD7A5AD99D900F99F /* VisitStore.swift */; };
+        70E5005D2A9EA3A53246B07D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B7E1D4CE39DB0816F1D53633 /* Assets.xcassets */; };
         E9C3FC33111979C7E9EC0399 /* LivePlacesWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 090BFD03983D1448253CD93F /* LivePlacesWidget.swift */; };
         FED1709EB8C2741F7E4437CA /* LivePlaceAttributes.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = CBF845530B254DB3B70CD0DB /* LivePlaceAttributes.swift */; };
         72FD1E88786344C159949CE4 /* AquiEstuveLiveWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 019B69DF77798E9A93E667FF /* AquiEstuveLiveWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,);}; };
@@ -50,6 +52,7 @@
         8A64AA330F618CF7F68E1927 /* NowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowView.swift; sourceTree = "<group>"; };
         81C2FF1DFD7BEB46E9A20773 /* PlaceTaxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceTaxonomy.swift; sourceTree = "<group>"; };
         A51EAF18F1F9FE809030D36F /* PulseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulseView.swift; sourceTree = "<group>"; };
+        697D5A6EF16CB0278882E510 /* QuickPlacePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPlacePicker.swift; sourceTree = "<group>"; };
         1FFED8D881034DC2D33C3216 /* RadarPreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarPreferencesStore.swift; sourceTree = "<group>"; };
         A8485145F450CDEF696F67CF /* RadarRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarRules.swift; sourceTree = "<group>"; };
         32149BB9D7376998914F024A /* RecoveredPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveredPlacesView.swift; sourceTree = "<group>"; };
@@ -61,6 +64,7 @@
         B428627BC02ECE76FFD77991 /* VenuePriority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VenuePriority.swift; sourceTree = "<group>"; };
         C517FCBDD7A5AD99D900F99F /* VisitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitStore.swift; sourceTree = "<group>"; };
         C5326349F03A5E41CE845D65 /* AquiEstuve.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AquiEstuve.app; sourceTree = BUILT_PRODUCTS_DIR; };
+        B7E1D4CE39DB0816F1D53633 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
         090BFD03983D1448253CD93F /* LivePlacesWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePlacesWidget.swift; sourceTree = "<group>"; };
         EF0F89448DF72AF25BAD4628 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
         019B69DF77798E9A93E667FF /* AquiEstuveLiveWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AquiEstuveLiveWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -83,6 +87,7 @@
                 8A64AA330F618CF7F68E1927 /* NowView.swift */,
                 81C2FF1DFD7BEB46E9A20773 /* PlaceTaxonomy.swift */,
                 A51EAF18F1F9FE809030D36F /* PulseView.swift */,
+                697D5A6EF16CB0278882E510 /* QuickPlacePicker.swift */,
                 1FFED8D881034DC2D33C3216 /* RadarPreferencesStore.swift */,
                 A8485145F450CDEF696F67CF /* RadarRules.swift */,
                 32149BB9D7376998914F024A /* RecoveredPlacesView.swift */,
@@ -93,6 +98,7 @@
                 E0EEB2FB9D5ED9375166090C /* StayReconciliation.swift */,
                 B428627BC02ECE76FFD77991 /* VenuePriority.swift */,
                 C517FCBDD7A5AD99D900F99F /* VisitStore.swift */,
+                B7E1D4CE39DB0816F1D53633 /* Assets.xcassets */,
         ); path = Source; sourceTree = "<group>"; };
         636EA38B8E0B7EA8D7ADD758 = {isa = PBXGroup; children = (C5326349F03A5E41CE845D65, 019B69DF77798E9A93E667FF,); name = Products; sourceTree = "<group>"; };
         E7B4A7B50927D3B5645AF20C /* LiveWidget */ = {isa = PBXGroup; children = (090BFD03983D1448253CD93F, EF0F89448DF72AF25BAD4628,); path = LiveWidget; sourceTree = "<group>"; };
@@ -114,7 +120,7 @@
         18B3AE277746372AC5D4677B = {isa = PBXTargetDependency; target = 649A2D1010BF4C4BCB53C47E; targetProxy = 91F06F8287265EBD27F32226; };
 /* End PBXTargetDependency section */
 /* Begin PBXResourcesBuildPhase section */
-        C793CFE4B075DFDEE49E7B17 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        C793CFE4B075DFDEE49E7B17 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (70E5005D2A9EA3A53246B07D,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 /* Begin PBXSourcesBuildPhase section */
         7C7B2E3D1CAC34EF2E9DD0B7 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
@@ -133,6 +139,7 @@
                 C86838BE69809FA4830D488F /* NowView.swift in Sources */,
                 569A2637D3997306CBA554CB /* PlaceTaxonomy.swift in Sources */,
                 879FB32B38A8F9601ABE9C98 /* PulseView.swift in Sources */,
+                63A3399842ECCD967CE8ED8E /* QuickPlacePicker.swift in Sources */,
                 7527488C9EA9436F02156D4F /* RadarPreferencesStore.swift in Sources */,
                 BA284E91174C4D7CA8E611EF /* RadarRules.swift in Sources */,
                 D6F50024B07D6F4510A13F04 /* RecoveredPlacesView.swift in Sources */,
@@ -149,8 +156,8 @@
 /* Begin XCBuildConfiguration section */
         85BFE9DBDB6067434E8984B2 = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
         795B6993DF3A3A05BE30DE82 = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_COMPILATION_MODE = wholemodule; }; name = Release; };
-        B0EE7820550B2B3215C9BD95 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
-        9E75B224E0BEAA03C056E5A1 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+        B0EE7820550B2B3215C9BD95 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
+        9E75B224E0BEAA03C056E5A1 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
         97DAC1B2BB203E4C576B6155 = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
         8ACA1D1C72A501E2C18546C6 = {isa = XCBuildConfiguration; buildSettings = { APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
 /* End XCBuildConfiguration section */

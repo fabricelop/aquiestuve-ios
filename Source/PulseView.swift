@@ -18,6 +18,7 @@ struct PulseView: View {
     @State private var archiveCandidate: PlaceCandidate?
     @State private var actionLabel = ""
     @State private var lastCenter: GeoPoint?
+    @State private var quickStay: Stay?
 
     private var ordered: [PlaceCandidate] {
         guard let center = location.coordinate else { return [] }
@@ -70,6 +71,7 @@ struct PulseView: View {
             }
         }
         .sheet(isPresented: $showRecovered) { RecoveredPlacesView() }
+        .sheet(item: $quickStay) { stay in QuickPlacePicker(stay: stay) }
         .confirmationDialog("Ocultar de las sugerencias", isPresented: $showArchiveConfirmation,
                             titleVisibility: .visible) {
             Button("Archivar, podré recuperarlo") {
@@ -128,6 +130,7 @@ struct PulseView: View {
     private var radarPage: some View {
         VStack(spacing: 17) {
             pulseStatus
+            quickLocationCard
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("DONDE PODRÍAS ESTAR")
@@ -187,6 +190,52 @@ struct PulseView: View {
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
+    }
+    private var quickLocationCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("ESTOY AQUÍ", systemImage: "mappin.circle.fill")
+                    .font(.caption.weight(.heavy)).foregroundStyle(.indigo)
+                Spacer()
+                if store.pendingCount > 0 {
+                    Text("\(store.pendingCount) pendientes")
+                        .font(.caption2.bold()).foregroundStyle(.orange)
+                }
+            }
+            if let active = store.activeStay {
+                Text(store.place(for: active)?.name ?? "Parada sin identificar")
+                    .font(.headline)
+                Text("Desde \(active.arrival.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button { quickStay = active } label: {
+                    Label("Estoy aquí · Cambiar lugar", systemImage: "location.fill")
+                        .frame(maxWidth: .infinity)
+                }.buttonStyle(.borderedProminent)
+            } else {
+                Text("Confirma dónde estás sin entrar en Historial.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                Button {
+                    if let position = location.coordinate {
+                        quickStay = Stay(placeID: nil, position: position,
+                                        arrival: Date(), departure: nil,
+                                        status: .unresolved, origin: "manual")
+                    } else { openExplorer = true }
+                } label: {
+                    Label("Estoy aquí · Elegir lugar", systemImage: "location.fill")
+                        .frame(maxWidth: .infinity)
+                }.buttonStyle(.borderedProminent)
+            }
+            if let pending = store.stays.filter({ $0.placeID == nil })
+                .sorted(by: { $0.arrival > $1.arrival }).first,
+               pending.id != store.activeStay?.id {
+                Button { quickStay = pending } label: {
+                    Label("Parada pendiente · \(pending.arrival.formatted(date: .abbreviated, time: .shortened)) · Elegir lugar", systemImage: "clock.badge.questionmark")
+                        .font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.bordered)
+            }
+        }
+        .padding(16)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
     }
     private var pulseStatus: some View {
         HStack(spacing: 13) {

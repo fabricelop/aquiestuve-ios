@@ -34,6 +34,8 @@ build_entries = '\n'.join(f'        {oid("build-" + name)} /* {name} in Sources 
 src_children = '\n'.join(f'                {oid("file-" + name)} /* {name} */,' for name in source_files)
 src_builds = '\n'.join(f'                {oid("build-" + name)} /* {name} in Sources */,' for name in source_files)
 
+assets_build = oid('assets-build')
+assets_file = oid('assets-file')
 project = f'''// !$*UTF8*$!
 {{
     archiveVersion = 1;
@@ -42,15 +44,18 @@ project = f'''// !$*UTF8*$!
     objects = {{
 /* Begin PBXBuildFile section */
 {build_entries}
+        {assets_build} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {assets_file} /* Assets.xcassets */; }};
 /* End PBXBuildFile section */
 /* Begin PBXFileReference section */
 {file_entries}
         {APP} /* AquiEstuve.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AquiEstuve.app; sourceTree = BUILT_PRODUCTS_DIR; }};
+        {assets_file} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; }};
 /* End PBXFileReference section */
 /* Begin PBXGroup section */
         {ROOT} = {{isa = PBXGroup; children = ({SRC}, {PRODUCTS},); sourceTree = "<group>"; }};
         {SRC} = {{isa = PBXGroup; children = (
 {src_children}
+                {assets_file} /* Assets.xcassets */,
         ); path = Source; sourceTree = "<group>"; }};
         {PRODUCTS} = {{isa = PBXGroup; children = ({APP},); name = Products; sourceTree = "<group>"; }};
 /* End PBXGroup section */
@@ -61,7 +66,7 @@ project = f'''// !$*UTF8*$!
         {PROJECT} = {{isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = 1; LastUpgradeCheck = 1600; TargetAttributes = {{{TARGET} = {{CreatedOnToolsVersion = 16.0; }}; }}; }}; buildConfigurationList = {PRJLIST}; compatibilityVersion = "Xcode 15.0"; developmentRegion = es; hasScannedForEncodings = 0; knownRegions = (es, en, Base,); mainGroup = {ROOT}; productRefGroup = {PRODUCTS}; projectDirPath = ""; projectRoot = ""; targets = ({TARGET},); }};
 /* End PBXProject section */
 /* Begin PBXResourcesBuildPhase section */
-        {RESOURCES} = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};
+        {RESOURCES} = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({assets_build},); runOnlyForDeploymentPostprocessing = 0; }};
 /* End PBXResourcesBuildPhase section */
 /* Begin PBXSourcesBuildPhase section */
         {SOURCES} = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
@@ -71,8 +76,8 @@ project = f'''// !$*UTF8*$!
 /* Begin XCBuildConfiguration section */
         {DBGP} = {{isa = XCBuildConfiguration; buildSettings = {{ CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }}; name = Debug; }};
         {RELP} = {{isa = XCBuildConfiguration; buildSettings = {{ CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; SWIFT_COMPILATION_MODE = wholemodule; }}; name = Release; }};
-        {DBGT} = {{isa = XCBuildConfiguration; buildSettings = {{ ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 10; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.10; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }}; name = Debug; }};
-        {RELT} = {{isa = XCBuildConfiguration; buildSettings = {{ ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 10; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.10; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }}; name = Release; }};
+        {DBGT} = {{isa = XCBuildConfiguration; buildSettings = {{ ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 16; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.16; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }}; name = Debug; }};
+        {RELT} = {{isa = XCBuildConfiguration; buildSettings = {{ ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 16; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Source/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.16; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; SWIFT_STRICT_CONCURRENCY = minimal; TARGETED_DEVICE_FAMILY = 1; }}; name = Release; }};
 /* End XCBuildConfiguration section */
 /* Begin XCConfigurationList section */
         {PRJLIST} = {{isa = XCConfigurationList; buildConfigurations = ({DBGP}, {RELP},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};
@@ -147,11 +152,11 @@ if include_live:
     project=project.replace(f'{TARGET} = {{CreatedOnToolsVersion = 16.0; }};',
                             f'{TARGET} = {{CreatedOnToolsVersion = 16.0; }}; {ext_target} = {{CreatedOnToolsVersion = 16.0; }};')
     # Change app version only, keep original bundle id unchanged for in-place upgrades.
-    project=project.replace('CURRENT_PROJECT_VERSION = 10;', 'CURRENT_PROJECT_VERSION = 15;')
-    project=project.replace('MARKETING_VERSION = 0.10;', 'MARKETING_VERSION = 0.15;')
+    project=project.replace('CURRENT_PROJECT_VERSION = 16;', 'CURRENT_PROJECT_VERSION = 15;')
+    project=project.replace('MARKETING_VERSION = 0.16;', 'MARKETING_VERSION = 0.15;')
 else:
-    project=project.replace('CURRENT_PROJECT_VERSION = 10;', 'CURRENT_PROJECT_VERSION = 15;')
-    project=project.replace('MARKETING_VERSION = 0.10;', 'MARKETING_VERSION = 0.15;')
+    project=project.replace('CURRENT_PROJECT_VERSION = 16;', 'CURRENT_PROJECT_VERSION = 15;')
+    project=project.replace('MARKETING_VERSION = 0.16;', 'MARKETING_VERSION = 0.15;')
 
 output = root / 'AquiEstuve.xcodeproj' / 'project.pbxproj'
 output.write_text(project, encoding='utf-8')
