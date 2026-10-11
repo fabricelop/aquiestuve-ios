@@ -141,8 +141,8 @@ if include_live:
     widget_code=f'''        {ext_src_phase} /* Sources: LiveWidget */ = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({ext_file_build}, {ext_attr_build},); runOnlyForDeploymentPostprocessing = 0; }};
 '''
     project=project.replace('/* End PBXSourcesBuildPhase section */',widget_code+'/* End PBXSourcesBuildPhase section */')
-    widget_code=f'''        {ext_debug} = {{isa = XCBuildConfiguration; buildSettings = {{ APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; TARGETED_DEVICE_FAMILY = 1; }}; name = Debug; }};
-        {ext_release} = {{isa = XCBuildConfiguration; buildSettings = {{ APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 15; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.15; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; }}; name = Release; }};
+    widget_code=f'''        {ext_debug} = {{isa = XCBuildConfiguration; buildSettings = {{ APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 16; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.16; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; TARGETED_DEVICE_FAMILY = 1; }}; name = Debug; }};
+        {ext_release} = {{isa = XCBuildConfiguration; buildSettings = {{ APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 16; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LiveWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.16; PRODUCT_BUNDLE_IDENTIFIER = com.aquiestuve.ios.LiveWidget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; }}; name = Release; }};
 '''
     project=project.replace('/* End XCBuildConfiguration section */',widget_code+'/* End XCBuildConfiguration section */')
     widget_code=f'''        {ext_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({ext_debug}, {ext_release},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};
@@ -152,11 +152,11 @@ if include_live:
     project=project.replace(f'{TARGET} = {{CreatedOnToolsVersion = 16.0; }};',
                             f'{TARGET} = {{CreatedOnToolsVersion = 16.0; }}; {ext_target} = {{CreatedOnToolsVersion = 16.0; }};')
     # Change app version only, keep original bundle id unchanged for in-place upgrades.
-    project=project.replace('CURRENT_PROJECT_VERSION = 16;', 'CURRENT_PROJECT_VERSION = 15;')
-    project=project.replace('MARKETING_VERSION = 0.16;', 'MARKETING_VERSION = 0.15;')
+    project=project.replace('CURRENT_PROJECT_VERSION = 16;', 'CURRENT_PROJECT_VERSION = 16;')
+    project=project.replace('MARKETING_VERSION = 0.16;', 'MARKETING_VERSION = 0.16;')
 else:
-    project=project.replace('CURRENT_PROJECT_VERSION = 16;', 'CURRENT_PROJECT_VERSION = 15;')
-    project=project.replace('MARKETING_VERSION = 0.16;', 'MARKETING_VERSION = 0.15;')
+    project=project.replace('CURRENT_PROJECT_VERSION = 16;', 'CURRENT_PROJECT_VERSION = 16;')
+    project=project.replace('MARKETING_VERSION = 0.16;', 'MARKETING_VERSION = 0.16;')
 
 output = root / 'AquiEstuve.xcodeproj' / 'project.pbxproj'
 output.write_text(project, encoding='utf-8')
